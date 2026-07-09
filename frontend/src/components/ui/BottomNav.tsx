@@ -73,7 +73,7 @@ export function BottomNav({ active, isRootScreen = true }: BottomNavProps) {
             key={item.key}
             onPress={() => {
               if (item.href && (!isActive || !isRootScreen)) {
-                router.replace(item.href as never);
+                router.navigate(item.href as never);
               }
             }}
             style={[styles.item, isActive && styles.activeItem]}

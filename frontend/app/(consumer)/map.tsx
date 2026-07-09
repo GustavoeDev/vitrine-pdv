@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
-    gap: spacing.lg,
+    gap: 10,
   },
   content: {
     flex: 1,
@@ -105,8 +105,9 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   header: {
-    height: 40,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     color: colors.textPrimary,

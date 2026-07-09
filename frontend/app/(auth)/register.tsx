@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +20,8 @@ import { AvatarPicker } from '@/src/components/ui/AvatarPicker';
 import { colors, spacing, typography } from '@/src/constants/tokens';
 
 export default function RegisterScreen() {
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -36,7 +39,11 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.form}>
-            <AvatarPicker />
+            <AvatarPicker
+              imageUri={avatarUri}
+              initial="M"
+              onImageSelected={setAvatarUri}
+            />
             <AuthTextInput
               autoComplete="name"
               label="Nome completo"

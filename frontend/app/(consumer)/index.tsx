@@ -64,6 +64,7 @@ export default function ConsumerHomeScreen() {
               renderItem={({ item, index }) => (
                 <CategoryChip
                   icon={item.icon}
+                  iconOutline={item.iconOutline}
                   label={item.label}
                   onPress={() =>
                     router.push(`/(consumer)/categories/${item.id}?origin=home` as never)

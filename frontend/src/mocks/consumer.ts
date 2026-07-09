@@ -12,12 +12,12 @@ const bakeryAvatar =
   'https://images.unsplash.com/photo-1517433670267-08bbd4be890f?q=80&w=160&auto=format&fit=crop';
 
 export const consumerCategories: Category[] = [
-  { id: 'all', label: 'Todos' },
-  { id: 'food', label: 'Alimentação', icon: '🍞' },
-  { id: 'clothes', label: 'Vestuário', icon: '👕' },
-  { id: 'health', label: 'Saúde', icon: '💊' },
-  { id: 'pet', label: 'Pet', icon: '🐾' },
-  { id: 'home', label: 'Casa', icon: '🏠' },
+  { id: 'all', label: 'Todos', icon: 'apps', iconOutline: 'apps-outline' },
+  { id: 'food', label: 'Alimentação', icon: 'restaurant', iconOutline: 'restaurant-outline' },
+  { id: 'clothes', label: 'Vestuário', icon: 'shirt', iconOutline: 'shirt-outline' },
+  { id: 'health', label: 'Saúde', icon: 'medical', iconOutline: 'medical-outline' },
+  { id: 'pet', label: 'Pet', icon: 'paw', iconOutline: 'paw-outline' },
+  { id: 'home', label: 'Casa', icon: 'home', iconOutline: 'home-outline' },
 ];
 
 export const searchCategories: Category[] = [

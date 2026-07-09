@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 
-export default function RootLayout() {
+import { EstablishmentRegistrationProvider } from '@/src/contexts/EstablishmentRegistrationContext';
+
+export default function RegisterEstablishmentLayout() {
   return (
-    <>
+    <EstablishmentRegistrationProvider>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -13,8 +14,9 @@ export default function RootLayout() {
           fullScreenGestureEnabled: true,
           contentStyle: { backgroundColor: '#FFFFFF' },
         }}
-      />
-      <StatusBar style="auto" />
-    </>
+      >
+        <Stack.Screen name="success" options={{ animation: 'fade_from_bottom' }} />
+      </Stack>
+    </EstablishmentRegistrationProvider>
   );
 }

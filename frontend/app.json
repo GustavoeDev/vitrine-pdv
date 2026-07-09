@@ -18,7 +18,14 @@
       "output": "static"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app precisa acessar suas fotos para definir imagens de perfil e capa.",
+          "cameraPermission": "O app precisa acessar a câmera para tirar fotos de perfil e capa."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

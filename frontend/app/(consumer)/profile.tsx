@@ -1,4 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -64,6 +66,8 @@ function SectionCard({ children }: { children: React.ReactNode }) {
 }
 
 export default function ConsumerProfileScreen() {
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
@@ -76,7 +80,11 @@ export default function ConsumerProfileScreen() {
           </View>
 
           <View style={styles.profileSummary}>
-            <AvatarPicker />
+            <AvatarPicker
+              imageUri={avatarUri}
+              initial="M"
+              onImageSelected={setAvatarUri}
+            />
             <Text style={styles.profileName}>Maria Clara</Text>
             <Text style={styles.profileEmail}>maria.clara@email.com</Text>
           </View>
@@ -96,7 +104,11 @@ export default function ConsumerProfileScreen() {
                 subtitle="Alimentação"
               />
               <View style={styles.divider} />
-              <Pressable accessibilityRole="button" style={styles.registerRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/(consumer)/register-establishment/step1')}
+                style={styles.registerRow}
+              >
                 <Ionicons color={colors.primary} name="add" size={20} />
                 <Text style={styles.registerText}>Registrar meu estabelecimento</Text>
               </Pressable>

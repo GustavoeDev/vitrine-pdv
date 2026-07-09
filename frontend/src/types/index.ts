@@ -2,6 +2,7 @@ export interface Category {
   id: string;
   label: string;
   icon?: string;
+  iconOutline?: string;
 }
 
 export interface Store {
