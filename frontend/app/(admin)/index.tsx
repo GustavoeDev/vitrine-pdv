@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +15,9 @@ import { AdminFilterChips } from '@/src/components/admin/AdminFilterChips';
 import { AdminStoreCard } from '@/src/components/admin/AdminStoreCard';
 import { AdminSummaryCards } from '@/src/components/admin/AdminSummaryCards';
 import { BottomSheetModal } from '@/src/components/ui/BottomSheetModal';
+import { BottomSheetOption } from '@/src/components/ui/BottomSheetOption';
 import { colors, spacing } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import {
   useAdminStoreSummary,
   useAdminStores,
@@ -29,6 +30,7 @@ import type { AdminStoreFilter } from '@/src/types/store';
 export default function AdminPanelScreen() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const { showAlert, showConfirm } = useAppModal();
   const [filter, setFilter] = useState<AdminStoreFilter>('PENDING');
   const [rejectStoreId, setRejectStoreId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -51,23 +53,28 @@ export default function AdminPanelScreen() {
   };
 
   const handleApprove = async (storeId: string, storeName: string) => {
-    Alert.alert('Aprovar estabelecimento', `Deseja aprovar "${storeName}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Aprovar',
-        onPress: async () => {
-          try {
-            setProcessingStoreId(storeId);
-            await approveMutation.mutateAsync(storeId);
-            await refetch();
-          } catch {
-            Alert.alert('Erro', 'Não foi possível aprovar o estabelecimento.');
-          } finally {
-            setProcessingStoreId(null);
-          }
-        },
-      },
-    ]);
+    const confirmed = await showConfirm({
+      title: 'Aprovar estabelecimento',
+      subtitle: `Deseja aprovar "${storeName}"?`,
+      confirmLabel: 'Aprovar',
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingStoreId(storeId);
+      await approveMutation.mutateAsync(storeId);
+      await refetch();
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível aprovar o estabelecimento.',
+      });
+    } finally {
+      setProcessingStoreId(null);
+    }
   };
 
   const openRejectModal = (storeId: string) => {
@@ -87,7 +94,10 @@ export default function AdminPanelScreen() {
 
     const reason = rejectionReason.trim();
     if (!reason) {
-      Alert.alert('Motivo obrigatório', 'Informe o motivo da recusa.');
+      await showAlert({
+        title: 'Motivo obrigatório',
+        subtitle: 'Informe o motivo da recusa.',
+      });
       return;
     }
 
@@ -97,7 +107,10 @@ export default function AdminPanelScreen() {
       closeRejectModal();
       await refetch();
     } catch {
-      Alert.alert('Erro', 'Não foi possível recusar o estabelecimento.');
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível recusar o estabelecimento.',
+      });
     } finally {
       setProcessingStoreId(null);
     }
@@ -176,14 +189,15 @@ export default function AdminPanelScreen() {
             textAlignVertical="top"
             value={rejectionReason}
           />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void handleReject()}
-            style={styles.rejectConfirmButton}
-          >
-            <Text style={styles.rejectConfirmText}>Confirmar recusa</Text>
-          </Pressable>
         </View>
+
+        <BottomSheetOption
+          destructive
+          icon="close-circle-outline"
+          onPress={() => void handleReject()}
+          subtitle="O lojista receberá o motivo informado."
+          title="Confirmar recusa"
+        />
       </BottomSheetModal>
     </SafeAreaView>
   );
@@ -239,8 +253,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalContent: {
-    gap: 16,
-    paddingBottom: spacing.lg,
+    gap: 12,
+    marginBottom: spacing.sm,
   },
   modalLabel: {
     color: colors.textPrimary,
@@ -258,18 +272,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
     lineHeight: 20,
-  },
-  rejectConfirmButton: {
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: colors.danger,
-  },
-  rejectConfirmText: {
-    color: colors.white,
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: '600',
+    backgroundColor: colors.surface,
   },
 });

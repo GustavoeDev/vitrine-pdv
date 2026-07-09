@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   EstablishmentMediaPickers,
@@ -9,6 +9,7 @@ import { RegisterStepBar } from '@/src/components/features/establishment/Registe
 import { AuthButton } from '@/src/components/ui/AuthButton';
 import { AuthTextInput } from '@/src/components/ui/AuthTextInput';
 import { SelectField } from '@/src/components/ui/SelectField';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useEstablishmentRegistration } from '@/src/contexts/EstablishmentRegistrationContext';
 import { useCategories } from '@/src/queries/useCategories';
 import { isBusinessStepComplete } from '@/src/utils/establishmentRegistration';
@@ -16,6 +17,7 @@ import { isBusinessStepComplete } from '@/src/utils/establishmentRegistration';
 export default function RegisterEstablishmentStep1Screen() {
   const { data, updateData } = useEstablishmentRegistration();
   const { data: categories = [], isLoading } = useCategories();
+  const { showAlert } = useAppModal();
 
   const selectedCategory = categories.find((category) => category.id === data.categoryId);
   const subcategoryOptions =
@@ -25,14 +27,14 @@ export default function RegisterEstablishmentStep1Screen() {
     })) ?? [];
   const showSubcategoryField = Boolean(data.categoryId && subcategoryOptions.length > 0);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!isBusinessStepComplete(data, categories)) {
-      Alert.alert(
-        'Campos obrigatórios',
-        showSubcategoryField
+      await showAlert({
+        title: 'Campos obrigatórios',
+        subtitle: showSubcategoryField
           ? 'Preencha nome, categoria, subcategoria e telefone para continuar.'
           : 'Preencha nome, categoria e telefone para continuar.',
-      );
+      });
       return;
     }
 
@@ -100,7 +102,7 @@ export default function RegisterEstablishmentStep1Screen() {
           value={data.phone}
         />
 
-        <AuthButton label="Continuar" onPress={handleContinue} />
+        <AuthButton label="Continuar" onPress={() => void handleContinue()} />
       </View>
     </RegisterScreenLayout>
   );

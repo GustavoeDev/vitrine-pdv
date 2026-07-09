@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ImagePickerSheet } from '@/src/components/ui/ImagePickerSheet';
 import { colors, radius } from '@/src/constants/tokens';
 import { launchCamera, launchGallery } from '@/src/utils/imagePicker';
-import { BottomSheetModal } from '@/src/components/ui/BottomSheetModal';
 
 interface AvatarPickerProps {
   imageUri?: string | null;
@@ -56,44 +56,14 @@ export function AvatarPicker({
           ) : null}
         </View>
       </Pressable>
-      <BottomSheetModal
+
+      <ImagePickerSheet
         onClose={() => setIsPickerOpen(false)}
+        onSelect={(source) => void handleSelect(source)}
         subtitle="Escolha como deseja adicionar a foto de perfil."
         title="Foto de perfil"
         visible={isPickerOpen}
-      >
-        {Platform.OS !== 'web' ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void handleSelect('camera')}
-            style={styles.option}
-          >
-            <View style={styles.optionIconWrap}>
-              <Ionicons color={colors.primary} name="camera-outline" size={20} />
-            </View>
-            <View style={styles.optionTextWrap}>
-              <Text style={styles.optionTitle}>Tirar foto</Text>
-              <Text style={styles.optionSubtitle}>Abra a câmera para registrar uma imagem.</Text>
-            </View>
-            <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
-          </Pressable>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void handleSelect('gallery')}
-          style={styles.option}
-        >
-          <View style={styles.optionIconWrap}>
-            <Ionicons color={colors.primary} name="images-outline" size={20} />
-          </View>
-          <View style={styles.optionTextWrap}>
-            <Text style={styles.optionTitle}>Escolher da galeria</Text>
-            <Text style={styles.optionSubtitle}>Selecione uma imagem já salva no dispositivo.</Text>
-          </View>
-          <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
-        </Pressable>
-      </BottomSheetModal>
+      />
     </>
   );
 }
@@ -131,39 +101,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
-  },
-  option: {
-    minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  optionIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-  },
-  optionTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  optionTitle: {
-    color: colors.textPrimary,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
-  },
-  optionSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '400',
   },
 });

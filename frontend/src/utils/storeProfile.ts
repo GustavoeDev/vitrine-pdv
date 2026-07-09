@@ -1,0 +1,2 @@
+export const STORE_PRODUCTS_PREVIEW_LIMIT = 4;
+export const STORE_REVIEWS_PREVIEW_LIMIT = 3;

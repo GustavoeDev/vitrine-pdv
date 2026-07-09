@@ -29,7 +29,7 @@ export function BottomSheetModal({
   visible,
 }: BottomSheetModalProps) {
   return (
-    <Modal animationType="fade" transparent visible={visible}>
+    <Modal animationType="slide" transparent visible={visible}>
       <View style={styles.overlay}>
         <Pressable onPress={onClose} style={StyleSheet.absoluteFill} />
 

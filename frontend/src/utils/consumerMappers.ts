@@ -3,7 +3,11 @@ import {
   DEFAULT_STORE_AVATAR,
   DEFAULT_STORE_COVER,
 } from '@/src/constants/images';
-import type { ApiProductDetail, ApiPublicStore } from '@/src/services/consumerStores';
+import type {
+  ApiProductDetail,
+  ApiProductSummary,
+  ApiPublicStore,
+} from '@/src/services/consumerStores';
 import { Product, Store } from '@/src/types';
 import type { MapStore } from '@/src/types/map';
 import { formatDistanceKm } from '@/src/utils/geo';
@@ -47,6 +51,18 @@ export function mapApiPublicStoreToMapStore(apiStore: ApiPublicStore): MapStore 
     latitude: Number(apiStore.latitude),
     longitude: Number(apiStore.longitude),
     distanceKm: apiStore.distance_km ?? null,
+  };
+}
+
+export function mapApiProductSummaryToProduct(apiProduct: ApiProductSummary): Product {
+  return {
+    id: apiProduct.id,
+    storeId: apiProduct.store_id,
+    name: apiProduct.name,
+    category: '',
+    description: '',
+    price: formatProductPrice(apiProduct.price),
+    imageUrl: apiProduct.photo_url ?? DEFAULT_PRODUCT_IMAGE,
   };
 }
 

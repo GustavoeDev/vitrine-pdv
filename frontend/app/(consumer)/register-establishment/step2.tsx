@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { AddressLocationPicker } from '@/src/components/features/establishment/AddressLocationPicker';
 import { RegisterScreenLayout } from '@/src/components/features/establishment/RegisterScreenLayout';
@@ -8,6 +8,7 @@ import { RegisterStepBar } from '@/src/components/features/establishment/Registe
 import { AuthButton } from '@/src/components/ui/AuthButton';
 import { AuthTextInput } from '@/src/components/ui/AuthTextInput';
 import { colors } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useEstablishmentRegistration } from '@/src/contexts/EstablishmentRegistrationContext';
 import { fetchAddressByCep } from '@/src/services/viaCep';
 import {
@@ -18,6 +19,7 @@ import {
 
 export default function RegisterEstablishmentStep2Screen() {
   const { data, updateData } = useEstablishmentRegistration();
+  const { showAlert } = useAppModal();
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
   const lastResolvedCepRef = useRef('');
@@ -108,12 +110,12 @@ export default function RegisterEstablishmentStep2Screen() {
     };
   }, [data.cep, updateData]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!isLocationStepComplete(data)) {
-      Alert.alert(
-        'Campos obrigatórios',
-        'Preencha o endereço completo e confirme a localização no mapa para continuar.',
-      );
+      await showAlert({
+        title: 'Campos obrigatórios',
+        subtitle: 'Preencha o endereço completo e confirme a localização no mapa para continuar.',
+      });
       return;
     }
 
@@ -226,7 +228,7 @@ export default function RegisterEstablishmentStep2Screen() {
           />
         ) : null}
 
-        <AuthButton label="Continuar" onPress={handleContinue} />
+        <AuthButton label="Continuar" onPress={() => void handleContinue()} />
       </View>
     </RegisterScreenLayout>
   );

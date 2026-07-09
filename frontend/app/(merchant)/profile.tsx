@@ -37,7 +37,8 @@ function Row({
 }
 
 export default function MerchantProfileScreen() {
-  const { profile } = useMerchant();
+  const { profile, activeStoreId, activeStoreName } = useMerchant();
+  const storeName = activeStoreName ?? profile.store.name;
   const logoUrl = profile.logo_url ?? profile.user.avatar_url ?? profile.store.cover_photo_url ?? '';
   const storeSubtitle = `${profile.category.name}`;
   const addressLabel = `${profile.address.street}, ${profile.address.number} - ${profile.address.district}`;
@@ -59,7 +60,7 @@ export default function MerchantProfileScreen() {
           <View style={styles.identityRow}>
             <Image source={{ uri: logoUrl }} style={styles.avatar} />
             <View style={styles.identityText}>
-              <Text style={styles.storeName}>{profile.store.name}</Text>
+              <Text style={styles.storeName}>{storeName}</Text>
               <Text style={styles.storeSubtitle}>{storeSubtitle}</Text>
               <View style={styles.activePill}>
                 <Text style={styles.activePillText}>Ativa</Text>
@@ -85,7 +86,7 @@ export default function MerchantProfileScreen() {
                     <Ionicons color={colors.primary} name="storefront-outline" size={18} />
                   </View>
                   <View style={styles.rowText}>
-                    <Text style={styles.rowLabel}>{profile.store.name}</Text>
+                    <Text style={styles.rowLabel}>{storeName}</Text>
                     <Text style={styles.rowSubtitle}>{profile.category.name}</Text>
                   </View>
                 </View>
@@ -97,6 +98,29 @@ export default function MerchantProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Informacoes da loja</Text>
             <View style={styles.card}>
+              {activeStoreId ? (
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      router.push(`/(consumer)/stores/${activeStoreId}?origin=profile` as never)
+                    }
+                    style={styles.row}
+                  >
+                    <View style={styles.rowLeft}>
+                      <View style={styles.iconWrap}>
+                        <Ionicons color={colors.primary} name="eye-outline" size={18} />
+                      </View>
+                      <View style={styles.rowText}>
+                        <Text style={styles.rowLabel}>Ver loja como cliente</Text>
+                        <Text style={styles.rowSubtitle}>Abre o perfil público de {storeName}</Text>
+                      </View>
+                    </View>
+                    <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+                  </Pressable>
+                  <View style={styles.divider} />
+                </>
+              ) : null}
               <Row icon="location-outline" label="Endereco" subtitle={addressLabel} />
               <View style={styles.divider} />
               <Row icon="logo-whatsapp" label="WhatsApp" subtitle={profile.store.phone_number} />

@@ -7,6 +7,7 @@ import {
   fetchStoreProducts,
   type PublicStoreFilters,
 } from '@/src/services/consumerStores';
+import { normalizeRouteParam } from '@/src/utils/routeParams';
 import { searchCatalog } from '@/src/services/search';
 
 export const discoveryKeys = {
@@ -15,6 +16,7 @@ export const discoveryKeys = {
   storeProducts: (storeId: string) => ['discovery', 'store-products', storeId] as const,
   product: (id: string) => ['discovery', 'product', id] as const,
   search: (query: string) => ['discovery', 'search', query] as const,
+  allStoreProducts: ['discovery', 'store-products'] as const,
 };
 
 export function usePublicStores(filters: PublicStoreFilters = {}) {
@@ -25,29 +27,36 @@ export function usePublicStores(filters: PublicStoreFilters = {}) {
   });
 }
 
-export function usePublicStore(storeId?: string) {
+export function usePublicStore(storeId?: string | string[]) {
+  const normalizedId = normalizeRouteParam(storeId);
+
   return useQuery({
-    queryKey: discoveryKeys.store(storeId ?? 'unknown'),
-    queryFn: () => fetchPublicStore(storeId!),
-    enabled: Boolean(storeId),
+    queryKey: discoveryKeys.store(normalizedId ?? 'unknown'),
+    queryFn: () => fetchPublicStore(normalizedId!),
+    enabled: Boolean(normalizedId),
     staleTime: 60_000,
   });
 }
 
-export function useStoreProducts(storeId?: string) {
+export function useStoreProducts(storeId?: string | string[]) {
+  const normalizedId = normalizeRouteParam(storeId);
+
   return useQuery({
-    queryKey: discoveryKeys.storeProducts(storeId ?? 'unknown'),
-    queryFn: () => fetchStoreProducts(storeId!),
-    enabled: Boolean(storeId),
-    staleTime: 60_000,
+    queryKey: discoveryKeys.storeProducts(normalizedId ?? 'unknown'),
+    queryFn: () => fetchStoreProducts(normalizedId!),
+    enabled: Boolean(normalizedId),
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 
-export function useProduct(productId?: string) {
+export function useProduct(productId?: string | string[]) {
+  const normalizedId = normalizeRouteParam(productId);
+
   return useQuery({
-    queryKey: discoveryKeys.product(productId ?? 'unknown'),
-    queryFn: () => fetchProduct(productId!),
-    enabled: Boolean(productId),
+    queryKey: discoveryKeys.product(normalizedId ?? 'unknown'),
+    queryFn: () => fetchProduct(normalizedId!),
+    enabled: Boolean(normalizedId),
     staleTime: 60_000,
   });
 }

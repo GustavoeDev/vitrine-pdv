@@ -1,26 +1,43 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomNav, BottomNavKey, resolveBottomNavKey } from '@/src/components/ui/BottomNav';
 import { BusinessHoursDisplay } from '@/src/components/features/BusinessHoursDisplay';
-import { DEFAULT_PRODUCT_IMAGE, DEFAULT_STORE_AVATAR, DEFAULT_STORE_COVER } from '@/src/constants/images';
+import { SeeMoreLink } from '@/src/components/features/store/SeeMoreLink';
+import { StoreProfileProductCard } from '@/src/components/features/store/StoreProfileProductCard';
+import { StoreProfileReviewCard } from '@/src/components/features/store/StoreProfileReviewCard';
+import { StoreReviewsSummary } from '@/src/components/features/store/StoreReviewsSummary';
+import { DEFAULT_STORE_AVATAR, DEFAULT_STORE_COVER } from '@/src/constants/images';
 import { colors, radius, spacing } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
+import { promotionOfTheDay, storeReviews } from '@/src/mocks/consumer';
+import { usePublicStore, useStoreProducts, discoveryKeys } from '@/src/queries/useDiscovery';
+import type { ApiPublicStore } from '@/src/services/consumerStores';
+import { Store } from '@/src/types';
 import {
-  consumerStore,
-  promotionOfTheDay,
-  storeProducts,
-  storeReviews,
-} from '@/src/mocks/consumer';
-import { usePublicStore, useStoreProducts } from '@/src/queries/useDiscovery';
-import type { ApiProductSummary, ApiPublicStore } from '@/src/services/consumerStores';
-import { Product, Review, Store } from '@/src/types';
+  STORE_PRODUCTS_PREVIEW_LIMIT,
+  STORE_REVIEWS_PREVIEW_LIMIT,
+} from '@/src/utils/storeProfile';
+import { buildBusinessHoursRowsFromApi } from '@/src/utils/businessHours';
 import {
-  formatProductPrice,
+  mapApiProductSummaryToProduct,
   mapApiPublicStoreToStore,
 } from '@/src/utils/consumerMappers';
-import { buildBusinessHoursRowsFromApi } from '@/src/utils/businessHours';
+import { openWhatsApp } from '@/src/utils/whatsapp';
+import { useQueryClient } from '@tanstack/react-query';
+import { normalizeRouteParam } from '@/src/utils/routeParams';
 
 type StoreTab = 'products' | 'reviews';
 
@@ -31,46 +48,23 @@ function resolveTab(tab?: string | string[]): StoreTab {
 function ActionButton({
   icon,
   label,
+  onPress,
   primary = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label?: string;
+  onPress?: () => void;
   primary?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      onPress={onPress}
       style={[styles.actionButton, primary ? styles.whatsAppButton : styles.secondaryAction]}
     >
       <Ionicons color={primary ? colors.white : colors.textPrimary} name={icon} size={22} />
       {label ? <Text style={styles.actionLabel}>{label}</Text> : null}
     </Pressable>
-  );
-}
-
-function StoreProductCard({ origin, product }: { origin: BottomNavKey; product: Product }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => router.push(`/(consumer)/products/${product.id}?origin=${origin}` as never)}
-      style={styles.productCard}
-    >
-      <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
-      <Text numberOfLines={1} style={styles.productName}>
-        {product.name}
-      </Text>
-      <Text style={styles.productPrice}>{product.price}</Text>
-    </Pressable>
-  );
-}
-
-function ReviewCard({ review }: { review: Review }) {
-  return (
-    <View style={styles.reviewCard}>
-      <Text style={styles.reviewAuthor}>{review.authorName}</Text>
-      <Text style={styles.reviewStars}>{'★'.repeat(review.rating)}</Text>
-      <Text style={styles.reviewComment}>{review.comment}</Text>
-    </View>
   );
 }
 
@@ -98,24 +92,9 @@ function StorePromotionCard({ origin }: { origin: BottomNavKey }) {
   );
 }
 
-function mapApiProductSummaryToProduct(apiProduct: ApiProductSummary): Product {
-  return {
-    id: apiProduct.id,
-    storeId: apiProduct.store_id,
-    name: apiProduct.name,
-    category: '',
-    description: '',
-    price: formatProductPrice(apiProduct.price),
-    imageUrl: apiProduct.photo_url ?? DEFAULT_PRODUCT_IMAGE,
-  };
-}
-
-function resolveStoreView(
-  apiStore: ReturnType<typeof usePublicStore>['data'],
-  fallbackStore: Store,
-): Store {
+function resolveStoreView(apiStore: ReturnType<typeof usePublicStore>['data']): Store | null {
   if (!apiStore) {
-    return fallbackStore;
+    return null;
   }
 
   return mapApiPublicStoreToStore({
@@ -135,21 +114,93 @@ function resolveStoreView(
 
 export default function StoreProfileScreen() {
   const { id, origin, tab } = useLocalSearchParams<{ id: string; origin?: string; tab?: string }>();
+  const storeId = normalizeRouteParam(id);
+  const queryClient = useQueryClient();
   const activeTab = resolveTab(tab);
   const activeBottomNav = resolveBottomNavKey(origin);
-  const { data: apiStore } = usePublicStore(id);
-  const { data: apiProducts = [] } = useStoreProducts(id);
-  const store = resolveStoreView(apiStore, consumerStore);
-  const products =
-    apiProducts.length > 0
-      ? apiProducts.map(mapApiProductSummaryToProduct)
-      : storeProducts;
+  const { showAlert } = useAppModal();
+  const { data: apiStore, isLoading: isLoadingStore, isError: isStoreError } = usePublicStore(storeId);
+  const {
+    data: apiProducts = [],
+    isLoading: isLoadingProducts,
+    isError: isProductsError,
+  } = useStoreProducts(storeId);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!storeId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: discoveryKeys.storeProducts(storeId) });
+    }, [queryClient, storeId]),
+  );
+  const store = resolveStoreView(apiStore);
+  const products = apiProducts.map(mapApiProductSummaryToProduct);
+  const previewProducts = useMemo(
+    () => products.slice(0, STORE_PRODUCTS_PREVIEW_LIMIT),
+    [products],
+  );
+  const previewReviews = useMemo(
+    () => storeReviews.slice(0, STORE_REVIEWS_PREVIEW_LIMIT),
+    [],
+  );
+  const hasMoreProducts = products.length > STORE_PRODUCTS_PREVIEW_LIMIT;
+  const hasMoreReviews = storeReviews.length > STORE_REVIEWS_PREVIEW_LIMIT;
   const addressLine = apiStore
     ? `${apiStore.address.street}, ${apiStore.address.number} • ${apiStore.address.district}`
-    : 'Rua da Matriz, 123 • Centro';
-  const coverImageUrl = apiStore?.cover_photo_url ?? store.coverImageUrl ?? DEFAULT_STORE_COVER;
-  const avatarUrl = apiStore?.logo_url ?? store.avatarUrl ?? DEFAULT_STORE_AVATAR;
+    : '';
+  const coverImageUrl = apiStore?.cover_photo_url ?? DEFAULT_STORE_COVER;
+  const avatarUrl = apiStore?.logo_url ?? DEFAULT_STORE_AVATAR;
   const businessHoursRows = buildBusinessHoursRowsFromApi(apiStore?.business_hours ?? []);
+
+  const handleWhatsAppPress = async () => {
+    const phoneNumber = apiStore?.phone_number ?? '';
+
+    if (!phoneNumber) {
+      await showAlert({
+        title: 'WhatsApp indisponível',
+        subtitle: 'Esta loja ainda não informou um telefone.',
+      });
+      return;
+    }
+
+    const message = store
+      ? `Olá! Vi a loja ${store.name} no VitrinePDV e gostaria de mais informações.`
+      : 'Olá! Vi sua loja no VitrinePDV e gostaria de mais informações.';
+
+    const opened = await openWhatsApp(phoneNumber, message);
+
+    if (!opened) {
+      await showAlert({
+        title: 'WhatsApp indisponível',
+        subtitle: 'Não foi possível abrir o WhatsApp neste dispositivo.',
+      });
+    }
+  };
+
+  if (isLoadingStore) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isStoreError || !store || !apiStore) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Loja não encontrada</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backLink}>
+            <Text style={styles.backLinkText}>Voltar</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -186,7 +237,12 @@ export default function StoreProfileScreen() {
           </View>
 
           <View style={styles.actionsRow}>
-            <ActionButton icon="logo-whatsapp" label="WhatsApp" primary />
+            <ActionButton
+              icon="logo-whatsapp"
+              label="WhatsApp"
+              onPress={() => void handleWhatsAppPress()}
+              primary
+            />
             <ActionButton icon="heart-outline" />
           </View>
 
@@ -224,27 +280,57 @@ export default function StoreProfileScreen() {
           {activeTab === 'products' ? (
             <View style={styles.productsContent}>
               <StorePromotionCard origin={activeBottomNav} />
-              <View style={styles.productGrid}>
-                {products.map((product) => (
-                  <StoreProductCard
-                    key={product.id}
-                    origin={activeBottomNav}
-                    product={product}
-                  />
-                ))}
-              </View>
+              {isLoadingProducts ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : isProductsError ? (
+                <Text style={styles.emptyProductsText}>
+                  Não foi possível carregar os produtos desta loja.
+                </Text>
+              ) : products.length === 0 ? (
+                <Text style={styles.emptyProductsText}>
+                  Esta loja ainda não cadastrou produtos.
+                </Text>
+              ) : (
+                <>
+                  <View style={styles.productGrid}>
+                    {previewProducts.map((product) => (
+                      <StoreProfileProductCard
+                        key={product.id}
+                        origin={activeBottomNav}
+                        product={product}
+                      />
+                    ))}
+                  </View>
+                  {hasMoreProducts ? (
+                    <SeeMoreLink
+                      onPress={() =>
+                        router.push(
+                          `/(consumer)/stores/${storeId}/products?origin=${activeBottomNav}` as never,
+                        )
+                      }
+                    />
+                  ) : null}
+                </>
+              )}
             </View>
           ) : (
             <View style={styles.reviewsSection}>
               <Text style={styles.reviewsTitle}>Avaliações</Text>
-              <View style={styles.averageRow}>
-                <Text style={styles.averageScore}>4,8</Text>
-                <Text style={styles.averageStars}>★★★★★</Text>
-                <Text style={styles.averageCount}>124 avaliações</Text>
+              <StoreReviewsSummary reviews={storeReviews} />
+              <View style={styles.reviewList}>
+                {previewReviews.map((review) => (
+                  <StoreProfileReviewCard key={review.id} review={review} />
+                ))}
               </View>
-              {storeReviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
-              ))}
+              {hasMoreReviews ? (
+                <SeeMoreLink
+                  onPress={() =>
+                    router.push(
+                      `/(consumer)/stores/${storeId}/reviews?origin=${activeBottomNav}` as never,
+                    )
+                  }
+                />
+              ) : null}
             </View>
           )}
         </ScrollView>
@@ -265,6 +351,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
     gap: spacing.lg,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  errorTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  backLink: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  backLinkText: {
+    color: colors.primary,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingTop: 24,
@@ -391,10 +501,19 @@ const styles = StyleSheet.create({
   },
   productGrid: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 10,
   },
   productsContent: {
     gap: spacing.md,
+  },
+  emptyProductsText: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingVertical: spacing.md,
   },
   storePromotionCard: {
     width: '100%',
@@ -439,38 +558,8 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: '700',
   },
-  productCard: {
-    flex: 1,
-    gap: 4,
-    padding: 6,
-    borderRadius: radius.lg - 4,
-    backgroundColor: colors.background,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  productImage: {
-    width: '100%',
-    height: 72,
-    borderRadius: radius.sm,
-    backgroundColor: colors.neutralSoft,
-  },
-  productName: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '700',
-  },
-  productPrice: {
-    color: colors.primary,
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '700',
-  },
   reviewsSection: {
-    gap: 4,
+    gap: spacing.sm,
   },
   reviewsTitle: {
     color: colors.textPrimary,
@@ -478,51 +567,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '700',
   },
-  averageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  averageScore: {
-    color: colors.textPrimary,
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
-  },
-  averageStars: {
-    color: colors.primary,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '700',
-  },
-  averageCount: {
-    color: colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '400',
-  },
-  reviewCard: {
-    width: '100%',
-    paddingVertical: spacing.xs,
-    borderRadius: radius.md - 2,
-    backgroundColor: colors.surface,
-  },
-  reviewAuthor: {
-    color: colors.textPrimary,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-  },
-  reviewStars: {
-    color: colors.primary,
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: '700',
-  },
-  reviewComment: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '400',
+  reviewList: {
+    gap: spacing.sm,
   },
 });

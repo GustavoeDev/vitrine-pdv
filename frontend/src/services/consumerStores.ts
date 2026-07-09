@@ -117,3 +117,7 @@ export async function fetchProduct(productId: string): Promise<ApiProductDetail>
   const { data } = await api.get(`/products/${productId}/`);
   return productDetailSchema.parse(data);
 }
+
+export async function recordProductView(productId: string): Promise<void> {
+  await api.post(`/products/${productId}/views/`);
+}

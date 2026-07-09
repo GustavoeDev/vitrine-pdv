@@ -178,6 +178,24 @@ export const storeReviews: Review[] = [
     rating: 5,
     comment: 'Excelentes óculos',
   },
+  {
+    id: 'ana',
+    authorName: 'Ana',
+    rating: 5,
+    comment: 'Atendimento muito atencioso e produtos frescos.',
+  },
+  {
+    id: 'carlos',
+    authorName: 'Carlos',
+    rating: 4,
+    comment: 'Bom custo-benefício, volto sempre.',
+  },
+  {
+    id: 'julia',
+    authorName: 'Julia',
+    rating: 5,
+    comment: 'A melhor padaria do bairro.',
+  },
 ];
 
 export const promotionOfTheDay: StorePromotion = {

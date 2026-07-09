@@ -49,6 +49,14 @@ export interface MerchantCreateProductInput {
   discounted_price?: number;
 }
 
+export interface MerchantUpdateProductInput {
+  name?: string;
+  description?: string;
+  price?: number;
+  photo_url?: string | null;
+  is_active?: boolean;
+}
+
 export interface MerchantCreatePromotionInput {
   promotion_type: MerchantPromotionType;
   title: string;

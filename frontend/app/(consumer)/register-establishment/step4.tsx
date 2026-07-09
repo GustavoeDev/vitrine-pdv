@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { BusinessHoursDisplay } from '@/src/components/features/BusinessHoursDisplay';
 import { RegisterScreenLayout } from '@/src/components/features/establishment/RegisterScreenLayout';
@@ -11,6 +11,7 @@ import {
   DEFAULT_LOGO_IMAGE,
 } from '@/src/constants/establishment';
 import { colors, radius, spacing } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useEstablishmentRegistration } from '@/src/contexts/EstablishmentRegistrationContext';
 import { useCategories } from '@/src/queries/useCategories';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -29,6 +30,7 @@ export default function RegisterEstablishmentStep4Screen() {
     useEstablishmentRegistration();
   const { data: categories = [] } = useCategories();
   const refreshUser = useAuthStore((state) => state.refreshUser);
+  const { showAlert } = useAppModal();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,7 +61,10 @@ export default function RegisterEstablishmentStep4Screen() {
         'Não foi possível enviar o cadastro. Tente novamente.',
       );
       setSubmitError(message);
-      Alert.alert('Erro ao cadastrar', message);
+      await showAlert({
+        title: 'Erro ao cadastrar',
+        subtitle: message,
+      });
     }
   };
 

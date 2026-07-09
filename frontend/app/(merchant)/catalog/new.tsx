@@ -1,17 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
-import { BottomSheetModal } from '@/src/components/ui/BottomSheetModal';
+import { ImagePickerSheet } from '@/src/components/ui/ImagePickerSheet';
 import { colors, radius, spacing, typography } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useMerchant } from '@/src/contexts/MerchantContext';
 import { launchCamera, launchGallery } from '@/src/utils/imagePicker';
 
 export default function MerchantProductCreateScreen() {
-  const { addProduct } = useMerchant();
+  const { addProduct, isSavingProduct } = useMerchant();
+  const { showAlert } = useAppModal();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -33,24 +35,34 @@ export default function MerchantProductCreateScreen() {
     setIsPickerOpen(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const numericPrice = Number(price.replace(',', '.'));
 
     if (!name || !description || !numericPrice || !imageUrl) {
-      Alert.alert('Campos obrigatorios', 'Preencha nome, preco, descricao e imagem.');
+      await showAlert({
+        title: 'Campos obrigatórios',
+        subtitle: 'Preencha nome, preço, descrição e imagem.',
+      });
       return;
     }
 
-    addProduct({
-      name,
-      description,
-      price: numericPrice,
-      discounted_price: discountPrice ? Number(discountPrice.replace(',', '.')) : undefined,
-      photo_url: imageUrl,
-      is_active: active,
-    });
+    try {
+      await addProduct({
+        name,
+        description,
+        price: numericPrice,
+        discounted_price: discountPrice ? Number(discountPrice.replace(',', '.')) : undefined,
+        photo_url: imageUrl,
+        is_active: active,
+      });
 
-    router.replace('/(merchant)/catalog');
+      router.replace('/(merchant)/catalog');
+    } catch {
+      await showAlert({
+        title: 'Erro ao salvar',
+        subtitle: 'Não foi possível cadastrar o produto. Tente novamente.',
+      });
+    }
   };
 
   return (
@@ -65,11 +77,17 @@ export default function MerchantProductCreateScreen() {
           </View>
 
           <Pressable accessibilityRole="button" onPress={() => setIsPickerOpen(true)} style={styles.imageField}>
-            <View style={styles.imageCircle}>
-              <Ionicons color={colors.primary} name="camera-outline" size={30} />
-            </View>
-            <Text style={styles.imageTitle}>Toque para adicionar foto</Text>
-            <Text style={styles.imageSubtitle}>Imagem clara ajuda a vender mais.</Text>
+            {imageUrl ? (
+              <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
+            ) : (
+              <>
+                <View style={styles.imageCircle}>
+                  <Ionicons color={colors.primary} name="camera-outline" size={30} />
+                </View>
+                <Text style={styles.imageTitle}>Toque para adicionar foto</Text>
+                <Text style={styles.imageSubtitle}>Imagem clara ajuda a vender mais.</Text>
+              </>
+            )}
           </Pressable>
 
           <View style={styles.field}>
@@ -77,11 +95,11 @@ export default function MerchantProductCreateScreen() {
             <TextInput placeholder="Ex.: Camiseta gola careca" placeholderTextColor={colors.textMuted} style={styles.input} value={name} onChangeText={setName} />
           </View>
           <View style={styles.field}>
-            <Text style={styles.label}>Preco</Text>
+            <Text style={styles.label}>Preço</Text>
             <TextInput keyboardType="decimal-pad" placeholder="0,00" placeholderTextColor={colors.textMuted} style={styles.input} value={price} onChangeText={setPrice} />
           </View>
           <View style={styles.field}>
-            <Text style={styles.label}>Descricao</Text>
+            <Text style={styles.label}>Descrição</Text>
             <TextInput multiline numberOfLines={4} placeholder="Descreva material, tamanho e cores" placeholderTextColor={colors.textMuted} style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} />
           </View>
           <View style={styles.field}>
@@ -94,31 +112,30 @@ export default function MerchantProductCreateScreen() {
             <Switch ios_backgroundColor={colors.border} onValueChange={setActive} thumbColor={colors.white} trackColor={{ false: colors.border, true: '#DCFCE7' }} value={active} />
           </View>
 
-          <Pressable accessibilityRole="button" onPress={handleSave} style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>Salvar Produto</Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={isSavingProduct}
+            onPress={() => void handleSave()}
+            style={[styles.saveButton, isSavingProduct && styles.saveButtonDisabled]}
+          >
+            {isSavingProduct ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.saveButtonText}>Salvar Produto</Text>
+            )}
           </Pressable>
         </ScrollView>
 
         <MerchantBottomNav active="catalog" />
       </View>
 
-      <BottomSheetModal
+      <ImagePickerSheet
         onClose={() => setIsPickerOpen(false)}
+        onSelect={(source) => void handleSelect(source)}
         subtitle="Escolha como deseja adicionar a foto do produto."
         title="Imagem do produto"
         visible={isPickerOpen}
-      >
-        {Platform.OS !== 'web' ? (
-          <Pressable accessibilityRole="button" onPress={() => void handleSelect('camera')} style={styles.modalOption}>
-            <Ionicons color={colors.primary} name="camera-outline" size={20} />
-            <Text style={styles.modalOptionText}>Tirar foto</Text>
-          </Pressable>
-        ) : null}
-        <Pressable accessibilityRole="button" onPress={() => void handleSelect('gallery')} style={styles.modalOption}>
-          <Ionicons color={colors.primary} name="images-outline" size={20} />
-          <Text style={styles.modalOptionText}>Escolher da galeria</Text>
-        </Pressable>
-      </BottomSheetModal>
+      />
     </SafeAreaView>
   );
 }
@@ -130,7 +147,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   backButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.neutralSoft },
   title: { color: colors.textPrimary, fontSize: 20, lineHeight: 26, fontWeight: '700' },
-  imageField: { alignItems: 'center', justifyContent: 'center', gap: 8, height: 180, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.sm, paddingHorizontal: 12 },
+  imageField: { alignItems: 'center', justifyContent: 'center', gap: 8, height: 180, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.sm, paddingHorizontal: 12, overflow: 'hidden' },
+  imagePreview: { width: '100%', height: '100%' },
   imageCircle: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
   imageTitle: { color: colors.textPrimary, fontSize: 14, lineHeight: 19, fontWeight: '700' },
   imageSubtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 19, fontWeight: '400' },
@@ -141,7 +159,6 @@ const styles = StyleSheet.create({
   toggleRow: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm },
   toggleLabel: { color: colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '400' },
   saveButton: { height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm, backgroundColor: colors.primary },
+  saveButtonDisabled: { opacity: 0.7 },
   saveButtonText: { color: colors.white, fontSize: 16, lineHeight: 22, fontWeight: '700' },
-  modalOption: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface },
-  modalOptionText: { color: colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '600' },
 });

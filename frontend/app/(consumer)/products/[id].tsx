@@ -1,26 +1,94 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomNav, resolveBottomNavKey } from '@/src/components/ui/BottomNav';
-import { colors, radius, spacing } from '@/src/constants/tokens';
 import { DEFAULT_STORE_AVATAR } from '@/src/constants/images';
-import { consumerStore, storeProducts } from '@/src/mocks/consumer';
+import { colors, radius, spacing } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useProduct, usePublicStore } from '@/src/queries/useDiscovery';
+import { recordProductView } from '@/src/services/consumerStores';
 import { mapApiProductToProduct } from '@/src/utils/consumerMappers';
+import { openWhatsApp } from '@/src/utils/whatsapp';
 
 export default function ProductDetailScreen() {
   const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
   const activeBottomNav = resolveBottomNavKey(origin);
-  const { data: apiProduct, isLoading } = useProduct(id);
+  const { data: apiProduct, isLoading, isError } = useProduct(id);
   const { data: apiStore } = usePublicStore(apiProduct?.store_id);
+  const { showAlert } = useAppModal();
+  const hasRecordedViewRef = useRef(false);
 
-  const fallbackProduct = storeProducts.find((item) => item.id === id) ?? storeProducts[0];
-  const product = apiProduct ? mapApiProductToProduct(apiProduct) : fallbackProduct;
-  const storeName = apiProduct?.store_name ?? consumerStore.name;
-  const storeId = apiProduct?.store_id ?? consumerStore.id;
+  useEffect(() => {
+    if (!id || hasRecordedViewRef.current || !apiProduct) {
+      return;
+    }
+
+    hasRecordedViewRef.current = true;
+    void recordProductView(id).catch(() => undefined);
+  }, [apiProduct, id]);
+
+  const product = apiProduct ? mapApiProductToProduct(apiProduct) : null;
+  const storeName = apiProduct?.store_name ?? '';
+  const storeId = apiProduct?.store_id ?? '';
   const storeAvatar = apiStore?.logo_url ?? apiStore?.cover_photo_url ?? DEFAULT_STORE_AVATAR;
+  const phoneNumber = apiStore?.phone_number ?? '';
+
+  const handleWhatsAppPress = async () => {
+    if (!phoneNumber) {
+      await showAlert({
+        title: 'WhatsApp indisponível',
+        subtitle: 'Esta loja ainda não informou um telefone.',
+      });
+      return;
+    }
+
+    const message = product
+      ? `Olá! Vi o produto ${product.name} no VitrinePDV e gostaria de mais informações.`
+      : 'Olá! Vi sua loja no VitrinePDV e gostaria de mais informações.';
+
+    const opened = await openWhatsApp(phoneNumber, message);
+
+    if (!opened) {
+      await showAlert({
+        title: 'WhatsApp indisponível',
+        subtitle: 'Não foi possível abrir o WhatsApp neste dispositivo.',
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError || !product) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Produto não encontrado</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backLink}>
+            <Text style={styles.backLinkText}>Voltar</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -38,8 +106,6 @@ export default function ProductDetailScreen() {
             <Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
           </Pressable>
 
-          {isLoading ? <ActivityIndicator color={colors.primary} /> : null}
-
           <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
 
           <View style={styles.titleRow}>
@@ -50,7 +116,9 @@ export default function ProductDetailScreen() {
             <Text style={styles.price}>{product.price}</Text>
           </View>
 
-          <Text style={styles.description}>{product.description}</Text>
+          <Text style={styles.description}>
+            {product.description || 'Este produto ainda não possui descrição.'}
+          </Text>
 
           <View style={styles.storeRow}>
             <Image source={{ uri: storeAvatar }} style={styles.storeAvatar} />
@@ -69,7 +137,11 @@ export default function ProductDetailScreen() {
             </View>
           </View>
 
-          <Pressable accessibilityRole="button" style={styles.whatsAppButton}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void handleWhatsAppPress()}
+            style={styles.whatsAppButton}
+          >
             <Ionicons color={colors.white} name="logo-whatsapp" size={22} />
             <Text style={styles.whatsAppText}>Falar no WhatsApp</Text>
           </Pressable>
@@ -90,6 +162,30 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  errorTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  backLink: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  backLinkText: {
+    color: colors.primary,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingTop: 24,

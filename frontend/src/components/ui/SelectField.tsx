@@ -1,8 +1,9 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { BottomSheetModal } from '@/src/components/ui/BottomSheetModal';
+import { BottomSheetOption } from '@/src/components/ui/BottomSheetOption';
 import { colors, radius, spacing, typography } from '@/src/constants/tokens';
 
 interface SelectOption {
@@ -52,25 +53,17 @@ export function SelectField({
         visible={isOpen}
       >
         {options.map((option) => (
-          <Pressable
-            accessibilityRole="button"
+          <BottomSheetOption
+            icon={value === option.id ? 'checkmark-circle' : 'ellipse-outline'}
             key={option.id}
             onPress={() => {
               onSelect(option.id, option.label);
               setIsOpen(false);
             }}
-            style={[styles.option, value === option.id && styles.selectedOption]}
-          >
-            <View style={styles.optionLeft}>
-              <View style={[styles.optionIndicator, value === option.id && styles.selectedIndicator]}>
-                {value === option.id ? (
-                  <Ionicons color={colors.white} name="checkmark" size={14} />
-                ) : null}
-              </View>
-              <Text style={styles.optionLabel}>{option.label}</Text>
-            </View>
-            <Ionicons color={colors.textMuted} name="chevron-forward" size={16} />
-          </Pressable>
+            showChevron={false}
+            subtitle={value === option.id ? 'Opção selecionada' : 'Toque para selecionar'}
+            title={option.label}
+          />
         ))}
       </BottomSheetModal>
     </View>
@@ -108,42 +101,5 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     color: colors.textMuted,
-  },
-  option: {
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  selectedOption: {
-    backgroundColor: colors.primarySoft,
-  },
-  optionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.sm,
-  },
-  optionIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectedIndicator: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  optionLabel: {
-    ...typography.body,
-    color: colors.textPrimary,
   },
 });

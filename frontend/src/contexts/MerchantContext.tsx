@@ -1,11 +1,19 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import {
-  merchantProductsMock,
   merchantProfileMock,
   merchantPromotionsMock,
   merchantStatsByRangeMock,
 } from '@/src/mocks/merchant';
+import {
+  createMerchantProduct,
+  deleteMerchantProduct,
+  fetchMerchantProducts,
+  updateMerchantProduct,
+} from '@/src/services/merchantProducts';
+import { discoveryKeys } from '@/src/queries/useDiscovery';
+import { useAuthStore } from '@/src/stores/authStore';
 import {
   MerchantCreateProductInput,
   MerchantCreatePromotionInput,
@@ -15,17 +23,26 @@ import {
   MerchantProduct,
   MerchantStatsRange,
 } from '@/src/types/merchant';
+import { resolveMerchantStore, resolveMerchantStoreId } from '@/src/utils/merchantStore';
+
+export const merchantProductKeys = {
+  all: (storeId?: string) => ['merchant', 'products', storeId ?? 'default'] as const,
+};
 
 interface MerchantContextValue {
   profile: MerchantProfileData;
+  activeStoreId?: string;
+  activeStoreName?: string;
   products: MerchantProduct[];
+  isLoadingProducts: boolean;
+  isSavingProduct: boolean;
   promotions: MerchantPromotion[];
   statsRange: MerchantStatsRange;
   setStatsRange: (range: MerchantStatsRange) => void;
   updateProfile: (patch: Partial<MerchantProfileData>) => void;
-  addProduct: (input: MerchantCreateProductInput) => void;
-  toggleProduct: (productId: string) => void;
-  deleteProduct: (productId: string) => void;
+  addProduct: (input: MerchantCreateProductInput) => Promise<void>;
+  toggleProduct: (productId: string) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
   addPromotion: (input: MerchantCreatePromotionInput) => void;
   updatePromotionStatus: (promotionId: string, status: MerchantPromotionStatus) => void;
 }
@@ -33,57 +50,120 @@ interface MerchantContextValue {
 const MerchantContext = createContext<MerchantContextValue | null>(null);
 
 export function MerchantProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
+  const userStores = useAuthStore((state) => state.user?.stores ?? []);
+  const activeStoreId = resolveMerchantStoreId(userStores);
+  const activeStore = resolveMerchantStore(userStores, activeStoreId);
+  const hasStore = Boolean(activeStoreId);
+
   const [profile, setProfile] = useState(merchantProfileMock);
-  const [products, setProducts] = useState(merchantProductsMock);
   const [promotions, setPromotions] = useState(merchantPromotionsMock);
   const [statsRange, setStatsRange] = useState<MerchantStatsRange>('30d');
+
+  useEffect(() => {
+    if (!activeStore) {
+      return;
+    }
+
+    setProfile((current) => ({
+      ...current,
+      store: {
+        ...current.store,
+        id: activeStore.id,
+        name: activeStore.name,
+        status: activeStore.status,
+        category_id: activeStore.category_id,
+        logo_url: activeStore.logo_url,
+        cover_photo_url: activeStore.cover_photo_url,
+      },
+      category: {
+        ...current.category,
+        id: activeStore.category_id,
+        name: activeStore.category_name,
+      },
+      logo_url: activeStore.logo_url ?? current.logo_url,
+    }));
+  }, [activeStore]);
+
+  const productsQuery = useQuery({
+    queryKey: merchantProductKeys.all(activeStoreId),
+    queryFn: () => fetchMerchantProducts(activeStoreId),
+    enabled: hasStore,
+  });
+
+  const invalidateConsumerProducts = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: discoveryKeys.allStoreProducts });
+  }, [queryClient]);
+
+  const createProductMutation = useMutation({
+    mutationFn: (input: MerchantCreateProductInput) =>
+      createMerchantProduct(input, activeStoreId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: merchantProductKeys.all(activeStoreId) });
+      await invalidateConsumerProducts();
+    },
+  });
+
+  const updateProductMutation = useMutation({
+    mutationFn: ({
+      productId,
+      input,
+    }: {
+      productId: string;
+      input: Parameters<typeof updateMerchantProduct>[1];
+    }) => updateMerchantProduct(productId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: merchantProductKeys.all(activeStoreId) });
+      await invalidateConsumerProducts();
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: deleteMerchantProduct,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: merchantProductKeys.all(activeStoreId) });
+      await invalidateConsumerProducts();
+    },
+  });
 
   const updateProfile = useCallback((patch: Partial<MerchantProfileData>) => {
     setProfile((current) => ({ ...current, ...patch }));
   }, []);
 
-  const addProduct = useCallback((input: MerchantCreateProductInput) => {
-    const productId = `${Date.now()}`;
-    const createdAt = new Date().toISOString();
+  const addProduct = useCallback(
+    async (input: MerchantCreateProductInput) => {
+      await createProductMutation.mutateAsync(input);
+    },
+    [createProductMutation],
+  );
 
-    setProducts((current) => [
-      {
-        id: productId,
-        store_id: profile.store.id,
-        created_at: createdAt,
-        view_count: 0,
-        active_discount: input.discounted_price
-          ? {
-              id: `discount-${productId}`,
-              product_id: productId,
-              original_price: input.price,
-              discounted_price: input.discounted_price,
-              start_date: createdAt,
-              end_date: createdAt,
-              is_active: true,
-            }
-          : null,
-        ...input,
-      },
-      ...current,
-    ]);
-  }, [profile.store.id]);
+  const toggleProduct = useCallback(
+    async (productId: string) => {
+      const product = productsQuery.data?.find((item) => item.id === productId);
+      if (!product) {
+        return;
+      }
 
-  const toggleProduct = useCallback((productId: string) => {
-    setProducts((current) =>
-      current.map((product) =>
-        product.id === productId ? { ...product, is_active: !product.is_active } : product,
-      ),
-    );
-  }, []);
+      await updateProductMutation.mutateAsync({
+        productId,
+        input: { is_active: !product.is_active },
+      });
+    },
+    [productsQuery.data, updateProductMutation],
+  );
 
-  const deleteProduct = useCallback((productId: string) => {
-    setProducts((current) => current.filter((product) => product.id !== productId));
-  }, []);
+  const deleteProduct = useCallback(
+    async (productId: string) => {
+      await deleteProductMutation.mutateAsync(productId);
+    },
+    [deleteProductMutation],
+  );
 
   const addPromotion = useCallback(
     (input: MerchantCreatePromotionInput) => {
-      const selectedProduct = products.find((product) => product.id === input.product_id);
+      const selectedProduct = (productsQuery.data ?? []).find(
+        (product) => product.id === input.product_id,
+      );
 
       setPromotions((current) => [
         {
@@ -95,15 +175,15 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
           discounted_price: input.discounted_price,
           discount_total: input.discount_total,
           badge_text: input.notify_favorites
-            ? 'Favoritos serao avisados'
-            : 'Ativa sem notificacao',
+            ? 'Favoritos serão avisados'
+            : 'Ativa sem notificação',
           product_id: input.product_id ?? null,
           ...input,
         },
         ...current,
       ]);
     },
-    [products, profile.store.id],
+    [productsQuery.data, profile.store.id],
   );
 
   const updatePromotionStatus = useCallback(
@@ -120,7 +200,14 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       profile,
-      products,
+      activeStoreId,
+      activeStoreName: activeStore?.name,
+      products: productsQuery.data ?? [],
+      isLoadingProducts: productsQuery.isLoading,
+      isSavingProduct:
+        createProductMutation.isPending ||
+        updateProductMutation.isPending ||
+        deleteProductMutation.isPending,
       promotions,
       statsRange,
       setStatsRange,
@@ -133,7 +220,13 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       profile,
-      products,
+      activeStore,
+      activeStoreId,
+      productsQuery.data,
+      productsQuery.isLoading,
+      createProductMutation.isPending,
+      updateProductMutation.isPending,
+      deleteProductMutation.isPending,
       promotions,
       statsRange,
       updateProfile,

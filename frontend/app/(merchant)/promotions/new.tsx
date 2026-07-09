@@ -1,17 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
 import { SelectField } from '@/src/components/ui/SelectField';
 import { colors, radius, spacing, typography } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useMerchant } from '@/src/contexts/MerchantContext';
 import { MerchantPromotionType } from '@/src/types/merchant';
 
 export default function MerchantPromotionCreateScreen() {
   const { products, addPromotion } = useMerchant();
+  const { showAlert } = useAppModal();
   const [type, setType] = useState<MerchantPromotionType>('daily');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -25,19 +27,28 @@ export default function MerchantPromotionCreateScreen() {
     [products],
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validityLabel) {
-      Alert.alert('Campos obrigatorios', 'Informe a validade da promocao.');
+      await showAlert({
+        title: 'Campos obrigatórios',
+        subtitle: 'Informe a validade da promoção.',
+      });
       return;
     }
 
     if (type === 'daily' && (!title || !description)) {
-      Alert.alert('Campos obrigatorios', 'Preencha titulo e descricao da promocao do dia.');
+      await showAlert({
+        title: 'Campos obrigatórios',
+        subtitle: 'Preencha título e descrição da promoção do dia.',
+      });
       return;
     }
 
     if (type === 'product-discount' && (!productId || !discountTotal)) {
-      Alert.alert('Campos obrigatorios', 'Selecione um produto e o total de desconto.');
+      await showAlert({
+        title: 'Campos obrigatórios',
+        subtitle: 'Selecione um produto e o total de desconto.',
+      });
       return;
     }
 
@@ -173,7 +184,7 @@ export default function MerchantPromotionCreateScreen() {
               </View>
             ) : null}
 
-            <Pressable accessibilityRole="button" onPress={handleSave} style={styles.saveButton}>
+            <Pressable accessibilityRole="button" onPress={() => void handleSave()} style={styles.saveButton}>
               <Text style={styles.saveButtonText}>Publicar Promocao</Text>
             </Pressable>
           </View>
