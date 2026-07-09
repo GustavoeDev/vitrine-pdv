@@ -11,17 +11,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BusinessHoursDisplay } from '@/src/components/features/BusinessHoursDisplay';
 import { DEFAULT_COVER_IMAGE, DEFAULT_LOGO_IMAGE } from '@/src/constants/establishment';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useAdminStore } from '@/src/queries/useAdminStores';
 import {
-  formatBusinessHoursSummary,
   formatRegisteredAt,
   formatStoreAddressLines,
   formatStoreCategoryLine,
   formatStorePhone,
   getStoreInitial,
 } from '@/src/utils/storePresentation';
+import { buildBusinessHoursRowsFromApi } from '@/src/utils/businessHours';
 
 export default function AdminStoreDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,6 +41,7 @@ export default function AdminStoreDetailScreen() {
   const coverUri = store.cover_photo_url ?? DEFAULT_COVER_IMAGE;
   const ownerAvatar = store.owner.avatar_url ?? DEFAULT_LOGO_IMAGE;
   const [addressLine1, addressLine2] = formatStoreAddressLines(store.address);
+  const businessHoursRows = buildBusinessHoursRowsFromApi(store.business_hours);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -101,9 +103,7 @@ export default function AdminStoreDetailScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Horário de funcionamento</Text>
-              <Text style={styles.sectionValue}>
-                {formatBusinessHoursSummary(store.business_hours)}
-              </Text>
+              <BusinessHoursDisplay rows={businessHoursRows} />
             </View>
           </View>
         </ScrollView>

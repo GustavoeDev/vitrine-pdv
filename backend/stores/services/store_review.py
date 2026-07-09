@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from stores.models import Store, StoreStatus
+from stores.services.address_coordinates import ensure_address_coordinates
 
 User = get_user_model()
 
@@ -16,6 +17,7 @@ def _ensure_pending(store: Store) -> None:
 
 def approve_store(*, store: Store, reviewer: User) -> Store:
     _ensure_pending(store)
+    ensure_address_coordinates(store.address)
     store.status = StoreStatus.ACTIVE
     store.reviewed_by = reviewer
     store.reviewed_at = timezone.now()

@@ -16,6 +16,8 @@ const addressSchema = z.object({
   city: z.string(),
   state: z.string(),
   zipcode: z.string(),
+  latitude: z.string().nullable().optional(),
+  longitude: z.string().nullable().optional(),
 });
 
 const businessHourSchema = z.object({

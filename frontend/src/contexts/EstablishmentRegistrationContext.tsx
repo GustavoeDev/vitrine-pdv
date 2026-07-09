@@ -29,6 +29,9 @@ const initialData: EstablishmentRegistrationData = {
   neighborhood: '',
   city: '',
   state: '',
+  cityStateLocked: false,
+  latitude: null,
+  longitude: null,
   schedule: createDefaultSchedule(),
 };
 

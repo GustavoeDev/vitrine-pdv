@@ -33,6 +33,19 @@ class CategoryDetailSerializer(CategorySerializer):
 
 
 class AddressSerializer(serializers.ModelSerializer):
+    latitude = serializers.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        required=False,
+        allow_null=True,
+    )
+    longitude = serializers.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = Address
         fields = (
@@ -43,6 +56,8 @@ class AddressSerializer(serializers.ModelSerializer):
             "city",
             "state",
             "zipcode",
+            "latitude",
+            "longitude",
         )
         extra_kwargs = {
             "complement": {"required": False, "allow_blank": True},
@@ -61,6 +76,8 @@ class AddressReadSerializer(serializers.ModelSerializer):
             "city",
             "state",
             "zipcode",
+            "latitude",
+            "longitude",
         )
 
 
@@ -155,13 +172,51 @@ class StoreSummarySerializer(serializers.ModelSerializer):
 
 class PublicStoreListSerializer(StoreSummarySerializer):
     address_summary = serializers.SerializerMethodField()
+    latitude = serializers.DecimalField(
+        source="address.latitude",
+        max_digits=9,
+        decimal_places=6,
+        read_only=True,
+        allow_null=True,
+    )
+    longitude = serializers.DecimalField(
+        source="address.longitude",
+        max_digits=9,
+        decimal_places=6,
+        read_only=True,
+        allow_null=True,
+    )
+    distance_km = serializers.SerializerMethodField()
 
     class Meta(StoreSummarySerializer.Meta):
-        fields = StoreSummarySerializer.Meta.fields + ("address_summary",)
+        fields = StoreSummarySerializer.Meta.fields + (
+            "address_summary",
+            "latitude",
+            "longitude",
+            "distance_km",
+        )
 
     def get_address_summary(self, store: Store) -> str:
         address = store.address
         return f"{address.city}, {address.state}"
+
+    def get_distance_km(self, store: Store) -> float | None:
+        user_coords = self.context.get("user_coords")
+        if not user_coords:
+            return None
+
+        latitude = store.address.latitude
+        longitude = store.address.longitude
+        if latitude is None or longitude is None:
+            return None
+
+        from stores.services.distance import haversine_km
+
+        user_lat, user_lng = user_coords
+        return round(
+            haversine_km(user_lat, user_lng, float(latitude), float(longitude)),
+            1,
+        )
 
 
 class SearchResultSerializer(serializers.Serializer):
@@ -255,3 +310,12 @@ class AdminStoreDetailSerializer(StoreDetailSerializer):
 
 class RejectStoreSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(max_length=500)
+
+
+class GeocodeQuerySerializer(serializers.Serializer):
+    street = serializers.CharField(max_length=255)
+    number = serializers.CharField(max_length=20)
+    district = serializers.CharField(max_length=100)
+    city = serializers.CharField(max_length=100)
+    state = serializers.CharField(max_length=2)
+    zipcode = serializers.CharField(max_length=8)

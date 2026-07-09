@@ -4,6 +4,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomNav, BottomNavKey, resolveBottomNavKey } from '@/src/components/ui/BottomNav';
+import { BusinessHoursDisplay } from '@/src/components/features/BusinessHoursDisplay';
 import { DEFAULT_PRODUCT_IMAGE, DEFAULT_STORE_AVATAR, DEFAULT_STORE_COVER } from '@/src/constants/images';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import {
@@ -19,6 +20,7 @@ import {
   formatProductPrice,
   mapApiPublicStoreToStore,
 } from '@/src/utils/consumerMappers';
+import { buildBusinessHoursRowsFromApi } from '@/src/utils/businessHours';
 
 type StoreTab = 'products' | 'reviews';
 
@@ -126,6 +128,8 @@ function resolveStoreView(
     logo_url: apiStore.logo_url,
     cover_photo_url: apiStore.cover_photo_url,
     address_summary: `${apiStore.address.city}, ${apiStore.address.state}`,
+    latitude: apiStore.address.latitude,
+    longitude: apiStore.address.longitude,
   } satisfies ApiPublicStore);
 }
 
@@ -145,6 +149,7 @@ export default function StoreProfileScreen() {
     : 'Rua da Matriz, 123 • Centro';
   const coverImageUrl = apiStore?.cover_photo_url ?? store.coverImageUrl ?? DEFAULT_STORE_COVER;
   const avatarUrl = apiStore?.logo_url ?? store.avatarUrl ?? DEFAULT_STORE_AVATAR;
+  const businessHoursRows = buildBusinessHoursRowsFromApi(apiStore?.business_hours ?? []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -173,6 +178,11 @@ export default function StoreProfileScreen() {
               {store.category} • {store.subcategory}
             </Text>
             <Text style={styles.storeAddress}>{addressLine}</Text>
+          </View>
+
+          <View style={styles.hoursSection}>
+            <Text style={styles.hoursTitle}>Horário de funcionamento</Text>
+            <BusinessHoursDisplay rows={businessHoursRows} />
           </View>
 
           <View style={styles.actionsRow}>
@@ -312,6 +322,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '400',
+  },
+  hoursSection: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg - 4,
+    backgroundColor: colors.surface,
+  },
+  hoursTitle: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
   },
   actionsRow: {
     flexDirection: 'row',

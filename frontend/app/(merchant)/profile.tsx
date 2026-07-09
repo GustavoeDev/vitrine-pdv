@@ -4,8 +4,10 @@ import { ScrollView, StyleSheet, Switch, Text, View, Pressable, Image } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
+import { BusinessHoursDisplay } from '@/src/components/features/BusinessHoursDisplay';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useMerchant } from '@/src/contexts/MerchantContext';
+import { buildBusinessHoursRowsFromApi } from '@/src/utils/businessHours';
 
 function Row({
   icon,
@@ -39,10 +41,7 @@ export default function MerchantProfileScreen() {
   const logoUrl = profile.logo_url ?? profile.user.avatar_url ?? profile.store.cover_photo_url ?? '';
   const storeSubtitle = `${profile.category.name}`;
   const addressLabel = `${profile.address.street}, ${profile.address.number} - ${profile.address.district}`;
-  const hoursLabel = profile.business_hours.length
-    ? `${profile.business_hours[0].opens_at} - ${profile.business_hours[0].closes_at}`
-    : 'Nao informado';
-  const hoursSubtitle = profile.business_hours.length ? 'Horario cadastrado' : '';
+  const businessHoursRows = buildBusinessHoursRowsFromApi(profile.business_hours);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -104,12 +103,17 @@ export default function MerchantProfileScreen() {
               <View style={styles.divider} />
               <Row icon="grid-outline" label="Categoria" subtitle={profile.category.name} />
               <View style={styles.divider} />
-              <Row
-                icon="time-outline"
-                label="Horario"
-                subtitle={`${hoursLabel}${hoursSubtitle ? ` • ${hoursSubtitle}` : ''}`}
-                chevron={false}
-              />
+              <View style={styles.hoursSection}>
+                <View style={styles.rowLeft}>
+                  <View style={styles.iconWrap}>
+                    <Ionicons color={colors.primary} name="time-outline" size={18} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowLabel}>Horário de funcionamento</Text>
+                    <BusinessHoursDisplay rows={businessHoursRows} />
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -176,6 +180,7 @@ const styles = StyleSheet.create({
   rowLabel: { color: colors.textPrimary, fontSize: 14, lineHeight: 19, fontWeight: '400' },
   rowSubtitle: { color: colors.textMuted, fontSize: 10, lineHeight: 14, fontWeight: '400' },
   divider: { height: 1, backgroundColor: colors.border },
+  hoursSection: { paddingHorizontal: spacing.md, paddingVertical: 12 },
   logoutButton: { height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.surface },
   logoutText: { color: colors.danger, fontSize: 15, lineHeight: 20, fontWeight: '700' },
 });

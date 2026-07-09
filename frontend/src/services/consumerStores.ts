@@ -12,6 +12,9 @@ const publicStoreSchema = z.object({
   logo_url: z.string().nullable(),
   cover_photo_url: z.string().nullable(),
   address_summary: z.string(),
+  latitude: z.string().nullable(),
+  longitude: z.string().nullable(),
+  distance_km: z.number().nullable().optional(),
 });
 
 const storeDetailSchema = z.object({
@@ -34,6 +37,8 @@ const storeDetailSchema = z.object({
     city: z.string(),
     state: z.string(),
     zipcode: z.string(),
+    latitude: z.string().nullable(),
+    longitude: z.string().nullable(),
   }),
   business_hours: z.array(
     z.object({
@@ -76,6 +81,9 @@ export interface PublicStoreFilters {
   categoryId?: string;
   subcategory?: string;
   limit?: number;
+  withLocation?: boolean;
+  lat?: number;
+  lng?: number;
 }
 
 export async function fetchPublicStores(
@@ -86,6 +94,9 @@ export async function fetchPublicStores(
       ...(filters.categoryId ? { category_id: filters.categoryId } : {}),
       ...(filters.subcategory ? { subcategory: filters.subcategory } : {}),
       ...(filters.limit ? { limit: filters.limit } : {}),
+      ...(filters.withLocation ? { with_location: 'true' } : {}),
+      ...(filters.lat != null ? { lat: filters.lat } : {}),
+      ...(filters.lng != null ? { lng: filters.lng } : {}),
     },
   });
 

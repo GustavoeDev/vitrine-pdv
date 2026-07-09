@@ -35,6 +35,9 @@ export interface EstablishmentRegistrationData {
   neighborhood: string;
   city: string;
   state: string;
+  cityStateLocked: boolean;
+  latitude: number | null;
+  longitude: number | null;
   schedule: DaySchedule[];
 }
 
@@ -48,6 +51,8 @@ export interface CreateStoreAddressInput {
   city: string;
   state: string;
   zipcode: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface CreateBusinessHourInput {

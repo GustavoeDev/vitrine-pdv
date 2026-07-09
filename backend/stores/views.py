@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalog.models import Product
-from stores.models import Category, Store, StoreStatus
+from stores.models import Address, Category, Store, StoreStatus
 from stores.permissions import IsStaffUser
 from stores.serializers import (
     AdminStoreDetailSerializer,
@@ -15,11 +15,13 @@ from stores.serializers import (
     CategoryDetailSerializer,
     CategorySerializer,
     CreateStoreSerializer,
+    GeocodeQuerySerializer,
     PublicStoreListSerializer,
     RejectStoreSerializer,
     SearchResultSerializer,
     StoreDetailSerializer,
 )
+from stores.services.geocoding import geocode_address
 from stores.services.store_registration import register_store
 from stores.services.store_review import approve_store, reject_store
 
@@ -130,10 +132,24 @@ class PublicStoreListView(ListAPIView):
     serializer_class = PublicStoreListSerializer
     pagination_class = None
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        lat = self.request.query_params.get("lat")
+        lng = self.request.query_params.get("lng")
+
+        if lat and lng:
+            try:
+                context["user_coords"] = (float(lat), float(lng))
+            except ValueError:
+                pass
+
+        return context
+
     def get_queryset(self):
         queryset = _public_store_queryset()
         category_id = self.request.query_params.get("category_id")
         subcategory = self.request.query_params.get("subcategory")
+        with_location = self.request.query_params.get("with_location")
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -141,14 +157,41 @@ class PublicStoreListView(ListAPIView):
         if subcategory:
             queryset = queryset.filter(subcategory__icontains=subcategory)
 
-        limit = self.request.query_params.get("limit")
+        if with_location in {"1", "true", "True"}:
+            queryset = queryset.filter(
+                address__latitude__isnull=False,
+                address__longitude__isnull=False,
+            )
+
+        return queryset
+
+    def list(self, request: Request, *args, **kwargs) -> Response:
+        queryset = list(self.get_queryset())
+        user_coords = self.get_serializer_context().get("user_coords")
+
+        if user_coords:
+            from stores.services.distance import haversine_km
+
+            user_lat, user_lng = user_coords
+
+            def sort_key(store: Store) -> float:
+                latitude = store.address.latitude
+                longitude = store.address.longitude
+                if latitude is None or longitude is None:
+                    return float("inf")
+                return haversine_km(user_lat, user_lng, float(latitude), float(longitude))
+
+            queryset.sort(key=sort_key)
+
+        limit = request.query_params.get("limit")
         if limit:
             try:
                 queryset = queryset[: int(limit)]
             except ValueError:
                 pass
 
-        return queryset
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class PublicStoreDetailView(RetrieveAPIView):
@@ -204,6 +247,31 @@ class SearchView(APIView):
 
         serializer = SearchResultSerializer(results, many=True)
         return Response(serializer.data)
+
+
+class GeocodeAddressView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        serializer = GeocodeQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        address = Address(**serializer.validated_data)
+        coordinates = geocode_address(address)
+
+        if not coordinates:
+            return Response(
+                {"detail": "Não foi possível localizar este endereço no mapa."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        latitude, longitude = coordinates
+        return Response(
+            {
+                "latitude": latitude,
+                "longitude": longitude,
+            }
+        )
 
 
 class AdminStoreRejectView(APIView):

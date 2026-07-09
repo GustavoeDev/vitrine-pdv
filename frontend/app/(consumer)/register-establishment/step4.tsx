@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 
+import { BusinessHoursDisplay } from '@/src/components/features/BusinessHoursDisplay';
 import { RegisterScreenLayout } from '@/src/components/features/establishment/RegisterScreenLayout';
 import { RegisterStepBar } from '@/src/components/features/establishment/RegisterHeader';
 import { AuthButton } from '@/src/components/ui/AuthButton';
@@ -16,10 +17,10 @@ import { useAuthStore } from '@/src/stores/authStore';
 import {
   formatAddress,
   formatPhone,
-  formatScheduleSummary,
   getCategoryLabel,
   getFirstIncompleteStep,
 } from '@/src/utils/establishmentRegistration';
+import { buildBusinessHoursRowsFromSchedule } from '@/src/utils/businessHours';
 import { getApiErrorMessage } from '@/src/utils/apiError';
 import { getRegistrationStepRoute } from '@/src/utils/registrationNavigation';
 
@@ -43,6 +44,7 @@ export default function RegisterEstablishmentStep4Screen() {
   const coverUri = data.coverImageUri ?? DEFAULT_COVER_IMAGE;
   const logoUri = data.logoImageUri ?? DEFAULT_LOGO_IMAGE;
   const categoryLabel = getCategoryLabel(data.categoryId, categories);
+  const businessHoursRows = buildBusinessHoursRowsFromSchedule(data.schedule);
 
   const handleSubmit = async () => {
     setSubmitError(null);
@@ -104,9 +106,9 @@ export default function RegisterEstablishmentStep4Screen() {
             <Text style={styles.detailValue}>{formatPhone(data.phone)}</Text>
           </View>
 
-          <View style={styles.hoursRow}>
-            <Text style={styles.detailLabel}>Horário</Text>
-            <Text style={styles.hoursValue}>{formatScheduleSummary(data.schedule)}</Text>
+          <View style={styles.hoursSection}>
+            <Text style={styles.detailLabel}>Horário de funcionamento</Text>
+            <BusinessHoursDisplay rows={businessHoursRows} />
           </View>
         </View>
       </View>
@@ -187,10 +189,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  hoursRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
+  hoursSection: {
+    gap: 8,
   },
   detailLabel: {
     color: colors.textSecondary,
@@ -199,13 +199,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   detailValue: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '400',
-  },
-  hoursValue: {
-    flex: 1,
     color: colors.textPrimary,
     fontSize: 13,
     lineHeight: 18,

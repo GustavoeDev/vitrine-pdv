@@ -19,9 +19,22 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
         return record.detail;
       }
 
-      const firstFieldError = Object.values(record).find((value) => Array.isArray(value) && value.length > 0);
-      if (Array.isArray(firstFieldError) && typeof firstFieldError[0] === 'string') {
-        return firstFieldError[0];
+      for (const value of Object.values(record)) {
+        if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
+          return value[0];
+        }
+
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          for (const nestedValue of Object.values(value as Record<string, unknown>)) {
+            if (
+              Array.isArray(nestedValue) &&
+              nestedValue.length > 0 &&
+              typeof nestedValue[0] === 'string'
+            ) {
+              return nestedValue[0];
+            }
+          }
+        }
       }
     }
   }

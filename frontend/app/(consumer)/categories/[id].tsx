@@ -38,7 +38,7 @@ function CategoryStoreRow({ origin, store }: { origin: string; store: Store }) {
         <Text style={styles.storeName}>{store.name}</Text>
         <Text style={styles.storeSubtitle}>{store.subcategory}</Text>
         <Text style={styles.storeMeta}>
-          {store.distance} • {store.rating.toFixed(1)} ★
+          {store.distance} • {(store.rating ?? 0).toFixed(1)} ★
         </Text>
         {hasPromotion ? (
           <View style={styles.promoBadge}>

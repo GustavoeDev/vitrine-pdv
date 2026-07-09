@@ -26,6 +26,12 @@
           "cameraPermission": "O app precisa acessar a câmera para tirar fotos de perfil e capa."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O app usa sua localização para mostrar lojas próximas no mapa."
+        }
+      ],
       "expo-secure-store"
     ],
     "experiments": {

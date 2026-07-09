@@ -5,6 +5,8 @@ import {
 } from '@/src/constants/images';
 import type { ApiProductDetail, ApiPublicStore } from '@/src/services/consumerStores';
 import { Product, Store } from '@/src/types';
+import type { MapStore } from '@/src/types/map';
+import { formatDistanceKm } from '@/src/utils/geo';
 
 export function formatProductPrice(price: string | number): string {
   const numeric = typeof price === 'string' ? Number.parseFloat(price) : price;
@@ -17,16 +19,34 @@ export function formatProductPrice(price: string | number): string {
 }
 
 export function mapApiPublicStoreToStore(apiStore: ApiPublicStore): Store {
+  const distance =
+    apiStore.distance_km != null ? formatDistanceKm(apiStore.distance_km) : apiStore.address_summary;
+
   return {
     id: apiStore.id,
     name: apiStore.name,
     category: apiStore.category_name,
     subcategory: apiStore.subcategory || apiStore.category_name,
-    distance: apiStore.address_summary,
+    distance,
     rating: 4.5,
     reviews: 0,
     coverImageUrl: apiStore.cover_photo_url ?? DEFAULT_STORE_COVER,
     avatarUrl: apiStore.logo_url ?? apiStore.cover_photo_url ?? DEFAULT_STORE_AVATAR,
+  };
+}
+
+export function mapApiPublicStoreToMapStore(apiStore: ApiPublicStore): MapStore | null {
+  if (!apiStore.latitude || !apiStore.longitude) {
+    return null;
+  }
+
+  const store = mapApiPublicStoreToStore(apiStore);
+
+  return {
+    ...store,
+    latitude: Number(apiStore.latitude),
+    longitude: Number(apiStore.longitude),
+    distanceKm: apiStore.distance_km ?? null,
   };
 }
 

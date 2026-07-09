@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
-from stores.models import Address, BusinessHour, Category, Store, StoreStatus
+from stores.models import Address, BusinessHour, Store, StoreStatus
+from stores.services.address_coordinates import ensure_address_coordinates
 
 User = get_user_model()
 
@@ -13,6 +14,9 @@ def register_store(*, user: User, validated_data: dict) -> Store:
     category_id = validated_data.pop("category_id")
 
     address = Address.objects.create(**address_data)
+    if address.latitude is None or address.longitude is None:
+        ensure_address_coordinates(address)
+
     store = Store.objects.create(
         user=user,
         address=address,

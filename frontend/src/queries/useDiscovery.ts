@@ -62,3 +62,22 @@ export function useSearch(query: string) {
     staleTime: 30_000,
   });
 }
+
+export function useMapStores(location?: { latitude: number; longitude: number } | null) {
+  const filters: PublicStoreFilters = {
+    withLocation: true,
+    ...(location
+      ? {
+          lat: location.latitude,
+          lng: location.longitude,
+        }
+      : {}),
+  };
+
+  return useQuery({
+    queryKey: discoveryKeys.stores(filters),
+    queryFn: () => fetchPublicStores(filters),
+    enabled: Boolean(location),
+    staleTime: 60_000,
+  });
+}

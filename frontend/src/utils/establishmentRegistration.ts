@@ -12,7 +12,11 @@ import {
   StepCompletion,
   Weekday,
 } from '@/src/types/establishment';
+import { formatScheduleSummary } from '@/src/utils/businessHours';
+import { roundCoordinate } from '@/src/utils/geo';
 import { isCompleteTimeValue, normalizeTimeForApi } from '@/src/utils/timeInput';
+
+export { formatScheduleSummary };
 
 export function categoryHasSubcategories(
   categoryId: string,
@@ -40,14 +44,22 @@ export function isBusinessStepComplete(
   );
 }
 
-export function isLocationStepComplete(data: EstablishmentRegistrationData): boolean {
+export function isAddressFieldsComplete(data: EstablishmentRegistrationData): boolean {
   return (
-    data.cep.trim().length >= 8 &&
+    data.cep.replace(/\D/g, '').length === 8 &&
     data.street.trim().length > 0 &&
     data.number.trim().length > 0 &&
     data.neighborhood.trim().length > 0 &&
     data.city.trim().length > 0 &&
     data.state.trim().length >= 2
+  );
+}
+
+export function isLocationStepComplete(data: EstablishmentRegistrationData): boolean {
+  return (
+    isAddressFieldsComplete(data) &&
+    data.latitude !== null &&
+    data.longitude !== null
   );
 }
 
@@ -160,129 +172,6 @@ export function formatAddress(data: EstablishmentRegistrationData): string {
   return parts.join(' - ');
 }
 
-function formatTimeShort(time: string): string {
-  const [hours, minutes] = time.split(':');
-  const parsedHours = Number(hours);
-
-  if (Number.isNaN(parsedHours)) {
-    return time;
-  }
-
-  if (minutes === '00' || !minutes) {
-    return `${parsedHours}h`;
-  }
-
-  return `${parsedHours}h${minutes}`;
-}
-
-function formatDayGroup(days: Weekday[], schedule: DaySchedule[]): string | null {
-  if (days.length === 0) {
-    return null;
-  }
-
-  const firstDay = schedule.find((entry) => entry.day === days[0]);
-
-  if (!firstDay || !firstDay.enabled || firstDay.intervals.length === 0) {
-    return null;
-  }
-
-  const interval = firstDay.intervals.find((item) => isIntervalComplete(item.open, item.close));
-
-  if (!interval) {
-    return null;
-  }
-
-  const range = `${formatTimeShort(interval.open)}-${formatTimeShort(interval.close)}`;
-  const label =
-    days.length === 1
-      ? WEEKDAY_SHORT[days[0]]
-      : `${WEEKDAY_SHORT[days[0]]}-${WEEKDAY_SHORT[days[days.length - 1]]}`;
-
-  return `${label} ${range}`;
-}
-
-export function formatScheduleSummary(schedule: DaySchedule[]): string {
-  const weekdayOrder: Weekday[] = [
-    'monday',
-    'tuesday',
-    'wednesday',
-    'thursday',
-    'friday',
-    'saturday',
-    'sunday',
-  ];
-
-  const openDays = schedule.filter((day) => day.enabled);
-  const closedDays = schedule.filter((day) => !day.enabled);
-
-  if (openDays.length === 0) {
-    return 'Fechado';
-  }
-
-  const groups: string[] = [];
-  let currentGroup: Weekday[] = [];
-
-  const signatureForDay = (day: Weekday) => {
-    const entry = schedule.find((item) => item.day === day);
-
-    if (!entry?.enabled) {
-      return 'closed';
-    }
-
-    const interval = entry.intervals.find((item) => isIntervalComplete(item.open, item.close));
-    return interval ? `${interval.open}-${interval.close}` : 'invalid';
-  };
-
-  weekdayOrder.forEach((day, index) => {
-    const entry = schedule.find((item) => item.day === day);
-
-    if (!entry?.enabled) {
-      if (currentGroup.length > 0) {
-        const formatted = formatDayGroup(currentGroup, schedule);
-        if (formatted) {
-          groups.push(formatted);
-        }
-        currentGroup = [];
-      }
-      return;
-    }
-
-    const previousDay = index > 0 ? weekdayOrder[index - 1] : null;
-    const sameAsPrevious =
-      previousDay && signatureForDay(previousDay) === signatureForDay(day);
-
-    if (sameAsPrevious && currentGroup.length > 0) {
-      currentGroup.push(day);
-      return;
-    }
-
-    if (currentGroup.length > 0) {
-      const formatted = formatDayGroup(currentGroup, schedule);
-      if (formatted) {
-        groups.push(formatted);
-      }
-    }
-
-    currentGroup = [day];
-  });
-
-  if (currentGroup.length > 0) {
-    const formatted = formatDayGroup(currentGroup, schedule);
-    if (formatted) {
-      groups.push(formatted);
-    }
-  }
-
-  if (closedDays.length === 1 && closedDays[0].day === 'sunday') {
-    groups.push('Dom fechado');
-  } else if (closedDays.length > 0 && closedDays.length < 7) {
-    const closedLabels = closedDays.map((day) => WEEKDAY_SHORT[day.day]);
-    groups.push(`${closedLabels.join('/')} fechado`);
-  }
-
-  return groups.join(' · ');
-}
-
 export function getEstablishmentInitial(name: string): string {
   const trimmed = name.trim();
   return trimmed ? trimmed.charAt(0).toUpperCase() : 'E';
@@ -325,6 +214,10 @@ export function toCreateStoreInput(data: EstablishmentRegistrationData): CreateS
       city: data.city.trim(),
       state: data.state.trim().toUpperCase(),
       zipcode: data.cep.replace(/\D/g, ''),
+      latitude:
+        data.latitude !== null ? roundCoordinate(data.latitude) : null,
+      longitude:
+        data.longitude !== null ? roundCoordinate(data.longitude) : null,
     },
     business_hours,
   };
