@@ -15,6 +15,17 @@ const authTokensSchema = z.object({
   refresh: z.string(),
 });
 
+const storeSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  status: z.enum(['PENDING', 'ACTIVE', 'INACTIVE', 'REJECTED']),
+  category_id: z.string().uuid(),
+  category_name: z.string(),
+  subcategory: z.string().nullable(),
+  logo_url: z.string().nullable(),
+  cover_photo_url: z.string().nullable(),
+});
+
 const userSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
@@ -22,6 +33,8 @@ const userSchema = z.object({
   avatar_url: z.string().nullable(),
   notifications_enabled: z.boolean(),
   created_at: z.string(),
+  is_staff: z.boolean(),
+  stores: z.array(storeSummarySchema),
 });
 
 const authSessionSchema = authTokensSchema.extend({

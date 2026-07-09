@@ -1,8 +1,9 @@
 import {
-  REGISTRATION_CATEGORIES,
   WEEKDAY_LABELS,
   WEEKDAY_SHORT,
 } from '@/src/constants/establishment';
+import type { ApiCategory } from '@/src/types/category';
+import { findCategoryById } from '@/src/services/categories';
 import {
   CreateBusinessHourInput,
   CreateStoreInput,
@@ -11,12 +12,30 @@ import {
   StepCompletion,
   Weekday,
 } from '@/src/types/establishment';
+import { isCompleteTimeValue, normalizeTimeForApi } from '@/src/utils/timeInput';
 
-export function isBusinessStepComplete(data: EstablishmentRegistrationData): boolean {
+export function categoryHasSubcategories(
+  categoryId: string,
+  categories: ApiCategory[],
+): boolean {
+  const category = categories.find((item) => item.id === categoryId);
+  return (category?.children.length ?? 0) > 0;
+}
+
+export function isBusinessStepComplete(
+  data: EstablishmentRegistrationData,
+  categories: ApiCategory[] = [],
+): boolean {
+  const requiresSubcategory =
+    data.categoryId.length > 0 && categoryHasSubcategories(data.categoryId, categories);
+  const subcategoryValid = requiresSubcategory
+    ? data.subcategory.trim().length > 0
+    : true;
+
   return (
     data.name.trim().length > 0 &&
     data.categoryId.length > 0 &&
-    data.subcategory.trim().length > 0 &&
+    subcategoryValid &&
     data.phone.trim().length >= 10
   );
 }
@@ -33,7 +52,7 @@ export function isLocationStepComplete(data: EstablishmentRegistrationData): boo
 }
 
 function isIntervalComplete(open: string, close: string): boolean {
-  return open.trim().length >= 4 && close.trim().length >= 4;
+  return isCompleteTimeValue(open) && isCompleteTimeValue(close);
 }
 
 export function isHoursStepComplete(data: EstablishmentRegistrationData): boolean {
@@ -43,28 +62,45 @@ export function isHoursStepComplete(data: EstablishmentRegistrationData): boolea
     return false;
   }
 
-  return openDays.every((day) =>
-    day.intervals.some((interval) => isIntervalComplete(interval.open, interval.close)),
-  );
+  return openDays.every((day) => {
+    const activeIntervals = day.intervals.filter(
+      (interval) => interval.open.trim().length > 0 || interval.close.trim().length > 0,
+    );
+
+    if (activeIntervals.length === 0) {
+      return false;
+    }
+
+    return activeIntervals.every((interval) =>
+      isIntervalComplete(interval.open, interval.close),
+    );
+  });
 }
 
-export function getStepCompletion(data: EstablishmentRegistrationData): StepCompletion {
+export function getStepCompletion(
+  data: EstablishmentRegistrationData,
+  categories: ApiCategory[] = [],
+): StepCompletion {
   return {
-    business: isBusinessStepComplete(data),
+    business: isBusinessStepComplete(data, categories),
     location: isLocationStepComplete(data),
     hours: isHoursStepComplete(data),
   };
 }
 
-export function areAllStepsComplete(data: EstablishmentRegistrationData): boolean {
-  const completion = getStepCompletion(data);
+export function areAllStepsComplete(
+  data: EstablishmentRegistrationData,
+  categories: ApiCategory[] = [],
+): boolean {
+  const completion = getStepCompletion(data, categories);
   return completion.business && completion.location && completion.hours;
 }
 
 export function getFirstIncompleteStep(
   data: EstablishmentRegistrationData,
+  categories: ApiCategory[] = [],
 ): 'business' | 'location' | 'hours' | null {
-  const completion = getStepCompletion(data);
+  const completion = getStepCompletion(data, categories);
 
   if (!completion.business) {
     return 'business';
@@ -81,8 +117,12 @@ export function getFirstIncompleteStep(
   return null;
 }
 
-export function getCategoryLabel(categoryId: string): string {
-  return REGISTRATION_CATEGORIES.find((category) => category.id === categoryId)?.label ?? '';
+export function getCategoryLabel(categoryId: string, categories?: ApiCategory[]): string {
+  if (categories) {
+    return findCategoryById(categories, categoryId)?.name ?? '';
+  }
+
+  return '';
 }
 
 export function formatPhone(phone: string): string {
@@ -263,8 +303,8 @@ export function toCreateStoreInput(data: EstablishmentRegistrationData): CreateS
           .filter((interval) => isIntervalComplete(interval.open, interval.close))
           .map((interval) => ({
             weekday: toBusinessWeekday(day.day),
-            opens_at: interval.open,
-            closes_at: interval.close,
+            opens_at: normalizeTimeForApi(interval.open),
+            closes_at: normalizeTimeForApi(interval.close),
           }))
       : [],
   );
@@ -272,7 +312,8 @@ export function toCreateStoreInput(data: EstablishmentRegistrationData): CreateS
   return {
     category_id: data.categoryId,
     name: data.name.trim(),
-    description: null,
+    description: '',
+    subcategory: data.subcategory.trim(),
     phone_number: data.phone.trim(),
     cover_photo_url: data.coverImageUri,
     logo_url: data.logoImageUri,

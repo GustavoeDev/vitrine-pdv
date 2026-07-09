@@ -60,6 +60,7 @@ export default function RegisterEstablishmentStep2Screen() {
         <View style={styles.row}>
           <View style={styles.halfField}>
             <AuthTextInput
+              keyboardType="numeric"
               label="Número"
               onChangeText={(number) => updateData({ number })}
               placeholder="Digite o Número"
@@ -68,9 +69,9 @@ export default function RegisterEstablishmentStep2Screen() {
           </View>
           <View style={styles.halfField}>
             <AuthTextInput
-              label="Complemento"
+              label="Complemento (opcional)"
               onChangeText={(complement) => updateData({ complement })}
-              placeholder="Casa, Apartamento..."
+              placeholder="Casa, apartamento..."
               value={data.complement}
             />
           </View>

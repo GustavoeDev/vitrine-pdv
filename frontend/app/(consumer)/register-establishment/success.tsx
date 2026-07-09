@@ -7,7 +7,6 @@ import { BottomNav } from '@/src/components/ui/BottomNav';
 import { DEFAULT_LOGO_IMAGE } from '@/src/constants/establishment';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useEstablishmentRegistration } from '@/src/contexts/EstablishmentRegistrationContext';
-import { getCategoryLabel } from '@/src/utils/establishmentRegistration';
 
 const nextSteps = [
   {
@@ -25,9 +24,15 @@ const nextSteps = [
 ];
 
 export default function RegisterEstablishmentSuccessScreen() {
-  const { data } = useEstablishmentRegistration();
-  const categoryLabel = getCategoryLabel(data.categoryId);
-  const logoUri = data.logoImageUri ?? DEFAULT_LOGO_IMAGE;
+  const { submittedStore } = useEstablishmentRegistration();
+
+  if (!submittedStore) {
+    return null;
+  }
+
+  const logoUri = submittedStore.logo_url ?? DEFAULT_LOGO_IMAGE;
+  const categoryLabel = submittedStore.category_name;
+  const subcategory = submittedStore.subcategory ?? '';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -65,9 +70,10 @@ export default function RegisterEstablishmentSuccessScreen() {
             <View style={styles.summaryCard}>
               <Image source={{ uri: logoUri }} style={styles.summaryAvatar} />
               <View style={styles.summaryDetails}>
-                <Text style={styles.summaryName}>{data.name}</Text>
+                <Text style={styles.summaryName}>{submittedStore.name}</Text>
                 <Text style={styles.summarySubtitle}>
-                  {categoryLabel} • {data.subcategory}
+                  {categoryLabel}
+                  {subcategory ? ` • ${subcategory}` : ''}
                 </Text>
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>Em análise</Text>

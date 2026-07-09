@@ -12,6 +12,7 @@ export default function SplashScreen() {
   const hydrate = useAuthStore((state) => state.hydrate);
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const accessToken = useAuthStore((state) => state.accessToken);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -27,12 +28,17 @@ export default function SplashScreen() {
     }
 
     if (accessToken) {
+      if (user?.is_staff) {
+        router.replace('/(admin)' as never);
+        return;
+      }
+
       router.replace('/(consumer)' as never);
       return;
     }
 
     router.replace('./login');
-  }, [accessToken, isHydrated]);
+  }, [accessToken, isHydrated, user]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

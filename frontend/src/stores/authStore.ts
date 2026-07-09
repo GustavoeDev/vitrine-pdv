@@ -19,6 +19,7 @@ interface AuthState {
   hydrate: () => Promise<void>;
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
+  refreshUser: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -88,6 +89,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isAuthenticating: false });
       throw error;
     }
+  },
+
+  refreshUser: async () => {
+    const accessToken = get().accessToken ?? (await getAccessToken());
+    if (!accessToken) {
+      return;
+    }
+
+    const user = await fetchCurrentUser();
+    set({ user, accessToken });
   },
 
   refreshSession: async () => {

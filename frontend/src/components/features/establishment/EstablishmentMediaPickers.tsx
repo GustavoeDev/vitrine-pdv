@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   coverPlaceholder: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,

@@ -1,12 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AvatarPicker } from '@/src/components/ui/AvatarPicker';
 import { BottomNav } from '@/src/components/ui/BottomNav';
 import { colors, radius, spacing } from '@/src/constants/tokens';
+import { useAuthStore } from '@/src/stores/authStore';
+import type { ApiStoreSummary } from '@/src/types/store';
+import { getEstablishmentInitial } from '@/src/utils/establishmentRegistration';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -67,8 +71,42 @@ function SectionCard({ children }: { children: React.ReactNode }) {
   return <View style={styles.card}>{children}</View>;
 }
 
+function getStoreSubtitle(store: ApiStoreSummary): string {
+  if (store.status === 'PENDING') {
+    return 'Em análise';
+  }
+
+  if (store.status === 'REJECTED') {
+    return 'Cadastro recusado';
+  }
+
+  return store.subcategory?.trim() || store.category_name;
+}
+
 export default function ConsumerProfileScreen() {
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const user = useAuthStore((state) => state.user);
+  const refreshUser = useAuthStore((state) => state.refreshUser);
+  const logout = useAuthStore((state) => state.logout);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshUser();
+    }, [refreshUser]),
+  );
+
+  const stores = user?.stores ?? [];
+  const userInitial = user ? getEstablishmentInitial(user.name) : 'U';
+
+  const handleStorePress = (store: ApiStoreSummary) => {
+    if (store.status === 'ACTIVE') {
+      router.push('/(merchant)' as never);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(auth)/login');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -83,12 +121,12 @@ export default function ConsumerProfileScreen() {
 
           <View style={styles.profileSummary}>
             <AvatarPicker
-              imageUri={avatarUri}
-              initial="M"
-              onImageSelected={setAvatarUri}
+              imageUri={user?.avatar_url ?? null}
+              initial={userInitial}
+              onImageSelected={() => undefined}
             />
-            <Text style={styles.profileName}>Maria Clara</Text>
-            <Text style={styles.profileEmail}>maria.clara@email.com</Text>
+            <Text style={styles.profileName}>{user?.name ?? 'Usuário'}</Text>
+            <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
           </View>
 
           <View style={styles.section}>
@@ -96,16 +134,21 @@ export default function ConsumerProfileScreen() {
             <SectionCard>
               <ProfileRow
                 icon="person-outline"
-                label="Maria Clara (conta pessoal)"
+                label={`${user?.name ?? 'Conta pessoal'} (conta pessoal)`}
                 selected
               />
-              <View style={styles.divider} />
-              <ProfileRow
-                icon="storefront-outline"
-                label="Padaria São José"
-                onPress={() => router.push('/(merchant)' as never)}
-                subtitle="Alimentação"
-              />
+              {stores.map((store) => (
+                <View key={store.id}>
+                  <View style={styles.divider} />
+                  <ProfileRow
+                    icon="storefront-outline"
+                    label={store.name}
+                    onPress={() => handleStorePress(store)}
+                    showChevron={store.status === 'ACTIVE'}
+                    subtitle={getStoreSubtitle(store)}
+                  />
+                </View>
+              ))}
               <View style={styles.divider} />
               <Pressable
                 accessibilityRole="button"
@@ -143,7 +186,11 @@ export default function ConsumerProfileScreen() {
             </SectionCard>
           </View>
 
-          <Pressable accessibilityRole="button" style={styles.logoutButton}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void handleLogout()}
+            style={styles.logoutButton}
+          >
             <Text style={styles.logoutText}>Sair</Text>
           </Pressable>
         </ScrollView>

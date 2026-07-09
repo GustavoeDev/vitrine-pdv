@@ -5,6 +5,7 @@ import { createIntervalId } from '@/src/constants/establishment';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { DaySchedule, TimeInterval } from '@/src/types/establishment';
 import { getWeekdayLabel } from '@/src/utils/establishmentRegistration';
+import { formatTimeWhileTyping, normalizeTimeValue } from '@/src/utils/timeInput';
 
 interface BusinessHoursDayCardProps {
   schedule: DaySchedule;
@@ -30,6 +31,24 @@ export function BusinessHoursDayCard({ schedule, onChange }: BusinessHoursDayCar
       intervals: schedule.intervals.map((interval) =>
         interval.id === intervalId ? { ...interval, ...patch } : interval,
       ),
+    });
+  };
+
+  const handleTimeChange = (intervalId: string, field: 'open' | 'close', value: string) => {
+    updateInterval(intervalId, {
+      [field]: formatTimeWhileTyping(value),
+    });
+  };
+
+  const normalizeIntervalField = (intervalId: string, field: 'open' | 'close', value: string) => {
+    if (!value.trim()) {
+      updateInterval(intervalId, { [field]: '' });
+      return;
+    }
+
+    const normalized = normalizeTimeValue(value);
+    updateInterval(intervalId, {
+      [field]: normalized ?? value,
     });
   };
 
@@ -71,9 +90,10 @@ export function BusinessHoursDayCard({ schedule, onChange }: BusinessHoursDayCar
             <View key={interval.id} style={styles.intervalRow}>
               <Text style={styles.intervalLabel}>Abre às</Text>
               <TextInput
-                keyboardType="numbers-and-punctuation"
+                keyboardType="number-pad"
                 maxLength={5}
-                onChangeText={(value) => updateInterval(interval.id, { open: value })}
+                onBlur={() => normalizeIntervalField(interval.id, 'open', interval.open)}
+                onChangeText={(value) => handleTimeChange(interval.id, 'open', value)}
                 placeholder="08:00"
                 placeholderTextColor={colors.textMuted}
                 style={styles.timeInput}
@@ -81,9 +101,10 @@ export function BusinessHoursDayCard({ schedule, onChange }: BusinessHoursDayCar
               />
               <Text style={styles.intervalLabel}>Fecha às</Text>
               <TextInput
-                keyboardType="numbers-and-punctuation"
+                keyboardType="number-pad"
                 maxLength={5}
-                onChangeText={(value) => updateInterval(interval.id, { close: value })}
+                onBlur={() => normalizeIntervalField(interval.id, 'close', interval.close)}
+                onChangeText={(value) => handleTimeChange(interval.id, 'close', value)}
                 placeholder="18:00"
                 placeholderTextColor={colors.textMuted}
                 style={styles.timeInput}

@@ -1,3 +1,5 @@
+import type { ApiStoreSummary } from '@/src/types/store';
+
 export interface ApiUser {
   id: string;
   name: string;
@@ -5,6 +7,8 @@ export interface ApiUser {
   avatar_url: string | null;
   notifications_enabled: boolean;
   created_at: string;
+  is_staff: boolean;
+  stores: ApiStoreSummary[];
 }
 
 export interface AuthTokens {

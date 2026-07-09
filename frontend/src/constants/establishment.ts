@@ -20,22 +20,6 @@ export const WEEKDAY_SHORT: Record<Weekday, string> = {
   sunday: 'Dom',
 };
 
-export const REGISTRATION_CATEGORIES = [
-  { id: 'food', label: 'Alimentação' },
-  { id: 'clothes', label: 'Vestuário' },
-  { id: 'health', label: 'Saúde' },
-  { id: 'pet', label: 'Pet' },
-  { id: 'home', label: 'Casa' },
-] as const;
-
-export const REGISTRATION_SUBCATEGORIES: Record<string, string[]> = {
-  food: ['Padaria artesanal', 'Padaria', 'Restaurante', 'Hortifruti', 'Mercado'],
-  clothes: ['Boutique', 'Moda casual', 'Moda infantil', 'Calçados'],
-  health: ['Farmácia', 'Clínica', 'Suplementos'],
-  pet: ['Pet shop', 'Veterinária', 'Rações'],
-  home: ['Móveis', 'Decoração', 'Utilidades'],
-};
-
 export const DEFAULT_COVER_IMAGE =
   'https://images.unsplash.com/photo-1601598851547-4302969d0614?q=80&w=900&auto=format&fit=crop';
 

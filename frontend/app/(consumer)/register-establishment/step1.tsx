@@ -9,28 +9,29 @@ import { RegisterStepBar } from '@/src/components/features/establishment/Registe
 import { AuthButton } from '@/src/components/ui/AuthButton';
 import { AuthTextInput } from '@/src/components/ui/AuthTextInput';
 import { SelectField } from '@/src/components/ui/SelectField';
-import {
-  REGISTRATION_CATEGORIES,
-  REGISTRATION_SUBCATEGORIES,
-} from '@/src/constants/establishment';
 import { useEstablishmentRegistration } from '@/src/contexts/EstablishmentRegistrationContext';
+import { useCategories } from '@/src/queries/useCategories';
 import { isBusinessStepComplete } from '@/src/utils/establishmentRegistration';
 
 export default function RegisterEstablishmentStep1Screen() {
   const { data, updateData } = useEstablishmentRegistration();
+  const { data: categories = [], isLoading } = useCategories();
 
-  const subcategoryOptions = data.categoryId
-    ? (REGISTRATION_SUBCATEGORIES[data.categoryId] ?? []).map((label) => ({
-        id: label,
-        label,
-      }))
-    : [];
+  const selectedCategory = categories.find((category) => category.id === data.categoryId);
+  const subcategoryOptions =
+    selectedCategory?.children.map((child) => ({
+      id: child.name,
+      label: child.name,
+    })) ?? [];
+  const showSubcategoryField = Boolean(data.categoryId && subcategoryOptions.length > 0);
 
   const handleContinue = () => {
-    if (!isBusinessStepComplete(data)) {
+    if (!isBusinessStepComplete(data, categories)) {
       Alert.alert(
         'Campos obrigatórios',
-        'Preencha nome, categoria, subcategoria e telefone para continuar.',
+        showSubcategoryField
+          ? 'Preencha nome, categoria, subcategoria e telefone para continuar.'
+          : 'Preencha nome, categoria e telefone para continuar.',
       );
       return;
     }
@@ -70,24 +71,26 @@ export default function RegisterEstablishmentStep1Screen() {
         />
 
         <SelectField
+          disabled={isLoading}
           label="Categoria"
           onSelect={(categoryId) => updateData({ categoryId, subcategory: '' })}
-          options={REGISTRATION_CATEGORIES.map((category) => ({
+          options={categories.map((category) => ({
             id: category.id,
-            label: category.label,
+            label: category.name,
           }))}
-          placeholder="Informe a categoria"
+          placeholder={isLoading ? 'Carregando categorias...' : 'Informe a categoria'}
           value={data.categoryId}
         />
 
-        <SelectField
-          disabled={!data.categoryId}
-          label="Subcategoria"
-          onSelect={(_, subcategory) => updateData({ subcategory })}
-          options={subcategoryOptions}
-          placeholder="Informe a subcategoria"
-          value={data.subcategory}
-        />
+        {showSubcategoryField ? (
+          <SelectField
+            label="Subcategoria"
+            onSelect={(_, subcategory) => updateData({ subcategory })}
+            options={subcategoryOptions}
+            placeholder="Informe a subcategoria"
+            value={data.subcategory}
+          />
+        ) : null}
 
         <AuthTextInput
           keyboardType="phone-pad"

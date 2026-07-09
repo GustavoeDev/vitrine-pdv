@@ -36,7 +36,8 @@ export default function LoginScreen() {
 
     try {
       await login({ email: email.trim(), password });
-      router.replace('/(consumer)' as never);
+      const user = useAuthStore.getState().user;
+      router.replace((user?.is_staff ? '/(admin)' : '/(consumer)') as never);
     } catch (loginError) {
       setError(getApiErrorMessage(loginError, 'Não foi possível entrar. Verifique seus dados.'));
     }

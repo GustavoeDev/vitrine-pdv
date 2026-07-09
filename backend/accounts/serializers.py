@@ -2,10 +2,14 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from stores.serializers import StoreSummarySerializer
+
 User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    stores = StoreSummarySerializer(many=True, read_only=True)
+
     class Meta:
         model = User
         fields = (
@@ -15,6 +19,8 @@ class UserSerializer(serializers.ModelSerializer):
             "avatar_url",
             "notifications_enabled",
             "created_at",
+            "is_staff",
+            "stores",
         )
         read_only_fields = fields
 

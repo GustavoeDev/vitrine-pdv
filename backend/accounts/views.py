@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -6,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+
+from stores.models import Store
 
 from accounts.serializers import (
     EmailTokenObtainPairSerializer,
@@ -49,8 +52,22 @@ class EmailTokenObtainPairView(TokenObtainPairView):
 
 
 class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_user_with_stores(self, user: User) -> User:
+        return (
+            User.objects.prefetch_related(
+                Prefetch(
+                    "stores",
+                    queryset=Store.objects.select_related("category"),
+                )
+            )
+            .get(pk=user.pk)
+        )
+
     def get(self, request: Request) -> Response:
-        return Response(UserSerializer(request.user).data)
+        user = self._get_user_with_stores(request.user)
+        return Response(UserSerializer(user).data)
 
     def patch(self, request: Request) -> Response:
         serializer = UserUpdateSerializer(
@@ -60,4 +77,5 @@ class MeView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(UserSerializer(request.user).data)
+        user = self._get_user_with_stores(request.user)
+        return Response(UserSerializer(user).data)

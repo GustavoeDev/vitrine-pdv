@@ -80,6 +80,7 @@ def test_me_returns_current_user(api_client: APIClient) -> None:
     assert response.status_code == status.HTTP_200_OK
     assert response.data["email"] == "maria@example.com"
     assert response.data["name"] == "Maria Clara"
+    assert response.data["is_staff"] is False
 
 
 @pytest.mark.django_db

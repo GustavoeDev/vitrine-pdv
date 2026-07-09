@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 
 import { RegisterScreenLayout } from '@/src/components/features/establishment/RegisterScreenLayout';
 import { RegisterStepBar } from '@/src/components/features/establishment/RegisterHeader';
@@ -11,6 +11,8 @@ import {
 } from '@/src/constants/establishment';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useEstablishmentRegistration } from '@/src/contexts/EstablishmentRegistrationContext';
+import { useCategories } from '@/src/queries/useCategories';
+import { useAuthStore } from '@/src/stores/authStore';
 import {
   formatAddress,
   formatPhone,
@@ -18,27 +20,45 @@ import {
   getCategoryLabel,
   getFirstIncompleteStep,
 } from '@/src/utils/establishmentRegistration';
+import { getApiErrorMessage } from '@/src/utils/apiError';
 import { getRegistrationStepRoute } from '@/src/utils/registrationNavigation';
 
 export default function RegisterEstablishmentStep4Screen() {
-  const { data, allStepsComplete } = useEstablishmentRegistration();
+  const { data, allStepsComplete, submitRegistration, isSubmitting } =
+    useEstablishmentRegistration();
+  const { data: categories = [] } = useCategories();
+  const refreshUser = useAuthStore((state) => state.refreshUser);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!allStepsComplete) {
-      const incompleteStep = getFirstIncompleteStep(data);
+      const incompleteStep = getFirstIncompleteStep(data, categories);
 
       if (incompleteStep) {
         router.replace(getRegistrationStepRoute(incompleteStep) as never);
       }
     }
-  }, [allStepsComplete, data]);
+  }, [allStepsComplete, categories, data]);
 
   const coverUri = data.coverImageUri ?? DEFAULT_COVER_IMAGE;
   const logoUri = data.logoImageUri ?? DEFAULT_LOGO_IMAGE;
-  const categoryLabel = getCategoryLabel(data.categoryId);
+  const categoryLabel = getCategoryLabel(data.categoryId, categories);
 
-  const handleSubmit = () => {
-    router.replace('/(consumer)/register-establishment/success');
+  const handleSubmit = async () => {
+    setSubmitError(null);
+
+    try {
+      await submitRegistration();
+      await refreshUser();
+      router.replace('/(consumer)/register-establishment/success');
+    } catch (error) {
+      const message = getApiErrorMessage(
+        error,
+        'Não foi possível enviar o cadastro. Tente novamente.',
+      );
+      setSubmitError(message);
+      Alert.alert('Erro ao cadastrar', message);
+    }
   };
 
   if (!allStepsComplete) {
@@ -64,7 +84,8 @@ export default function RegisterEstablishmentStep4Screen() {
             <View style={styles.identityText}>
               <Text style={styles.storeName}>{data.name}</Text>
               <Text style={styles.storeSubtitle}>
-                {categoryLabel} • {data.subcategory}
+                {categoryLabel}
+                {data.subcategory ? ` • ${data.subcategory}` : ''}
               </Text>
             </View>
           </View>
@@ -90,7 +111,13 @@ export default function RegisterEstablishmentStep4Screen() {
         </View>
       </View>
 
-      <AuthButton label="Concluir cadastro" onPress={handleSubmit} />
+      {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
+
+      <AuthButton
+        disabled={isSubmitting}
+        label={isSubmitting ? 'Enviando...' : 'Concluir cadastro'}
+        onPress={handleSubmit}
+      />
     </RegisterScreenLayout>
   );
 }
@@ -183,5 +210,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '400',
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });

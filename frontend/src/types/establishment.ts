@@ -60,6 +60,7 @@ export interface CreateStoreInput {
   category_id: string;
   name: string;
   description?: string | null;
+  subcategory?: string | null;
   phone_number: string;
   cover_photo_url?: string | null;
   logo_url?: string | null;
