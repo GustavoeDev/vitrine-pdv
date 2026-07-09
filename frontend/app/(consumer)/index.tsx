@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   ScrollView,
@@ -14,9 +16,42 @@ import { CategoryChip } from '@/src/components/features/CategoryChip';
 import { NearbyStoreCard } from '@/src/components/features/StoreCards';
 import { BottomNav } from '@/src/components/ui/BottomNav';
 import { colors, radius, spacing } from '@/src/constants/tokens';
-import { consumerCategories, nearbyStores } from '@/src/mocks/consumer';
+import { useCategories } from '@/src/queries/useCategories';
+import { mapRootCategoriesToChips } from '@/src/services/categories';
+import { navigateToCategory } from '@/src/utils/navigation';
+import { getTopRatedStores, HOME_STORES_PREVIEW_LIMIT } from '@/src/utils/storeFilters';
 
 export default function ConsumerHomeScreen() {
+  const { data: categories = [], isLoading } = useCategories();
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+  const categoryChips = useMemo(() => mapRootCategoriesToChips(categories), [categories]);
+
+  const selectedCategoryLabel = useMemo(() => {
+    if (selectedCategoryId === 'all') {
+      return null;
+    }
+
+    return categoryChips.find((chip) => chip.id === selectedCategoryId)?.label ?? null;
+  }, [categoryChips, selectedCategoryId]);
+
+  const topRatedStores = useMemo(
+    () => getTopRatedStores(selectedCategoryLabel),
+    [selectedCategoryLabel],
+  );
+
+  const previewStores = useMemo(
+    () => topRatedStores.slice(0, HOME_STORES_PREVIEW_LIMIT),
+    [topRatedStores],
+  );
+
+  const storesSectionTitle = selectedCategoryLabel
+    ? `Lojas mais avaliadas em ${selectedCategoryLabel}`
+    : 'Lojas mais avaliadas';
+
+  function handleSeeMore() {
+    navigateToCategory(selectedCategoryId, 'home');
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
@@ -57,33 +92,52 @@ export default function ConsumerHomeScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Categorias</Text>
-            <FlatList
-              data={consumerCategories}
-              horizontal
-              keyExtractor={(item) => item.id}
-              renderItem={({ item, index }) => (
-                <CategoryChip
-                  icon={item.icon}
-                  iconOutline={item.iconOutline}
-                  label={item.label}
-                  onPress={() =>
-                    router.push(`/(consumer)/categories/${item.id}?origin=home` as never)
-                  }
-                  selected={index === 0}
-                />
-              )}
-              ItemSeparatorComponent={() => <View style={styles.chipSeparator} />}
-              showsHorizontalScrollIndicator={false}
-            />
+            {isLoading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <FlatList
+                data={categoryChips}
+                horizontal
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <CategoryChip
+                    icon={item.icon}
+                    iconOutline={item.iconOutline}
+                    label={item.label}
+                    onPress={() => setSelectedCategoryId(item.id)}
+                    selected={selectedCategoryId === item.id}
+                  />
+                )}
+                ItemSeparatorComponent={() => <View style={styles.chipSeparator} />}
+                showsHorizontalScrollIndicator={false}
+              />
+            )}
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Lojas próximas</Text>
-            <View style={styles.storeList}>
-              {nearbyStores.map((store) => (
-                <NearbyStoreCard key={store.id} store={store} />
-              ))}
-            </View>
+            <Text style={styles.sectionTitle}>{storesSectionTitle}</Text>
+            {previewStores.length > 0 ? (
+              <View style={styles.storeList}>
+                {previewStores.map((store) => (
+                  <NearbyStoreCard key={store.id} store={store} />
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>
+                Nenhuma loja encontrada nesta categoria por enquanto.
+              </Text>
+            )}
+
+            {topRatedStores.length > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleSeeMore}
+                style={styles.seeMoreButton}
+              >
+                <Text style={styles.seeMoreText}>Ver mais</Text>
+                <Ionicons color={colors.primary} name="arrow-forward" size={18} />
+              </Pressable>
+            ) : null}
           </View>
         </ScrollView>
 
@@ -208,5 +262,24 @@ const styles = StyleSheet.create({
   },
   storeList: {
     gap: spacing.sm,
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  seeMoreButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.xs,
+  },
+  seeMoreText: {
+    color: colors.primary,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
   },
 });

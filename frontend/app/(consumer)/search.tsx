@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   ScrollView,
@@ -15,12 +17,40 @@ import { CategoryChip } from '@/src/components/features/CategoryChip';
 import { SearchResultRow } from '@/src/components/features/SearchResultRow';
 import { FeaturedStoreCard } from '@/src/components/features/StoreCards';
 import { BottomNav } from '@/src/components/ui/BottomNav';
+import { ALL_CATEGORIES_CHIP } from '@/src/constants/categoryIcons';
 import { colors, radius, spacing } from '@/src/constants/tokens';
-import { featuredStores, searchCategories, searchResults } from '@/src/mocks/consumer';
-import { useState } from 'react';
+import { featuredStores, searchResults } from '@/src/mocks/consumer';
+import { useCategories } from '@/src/queries/useCategories';
+import { findFoodCategory, mapCategoryToChip } from '@/src/services/categories';
+import { navigateToCategory } from '@/src/utils/navigation';
 
 export default function ConsumerSearchScreen() {
   const [isFocused, setIsFocused] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES_CHIP.id);
+  const { data: categories = [], isLoading } = useCategories();
+
+  const searchCategoryChips = useMemo(() => {
+    const foodCategory = findFoodCategory(categories);
+    const subcategories = foodCategory?.children.map(mapCategoryToChip) ?? [];
+
+    return [ALL_CATEGORIES_CHIP, ...subcategories];
+  }, [categories]);
+
+  function handleSearchCategoryPress(categoryId: string) {
+    const foodCategory = findFoodCategory(categories);
+    if (!foodCategory) {
+      return;
+    }
+
+    setSelectedCategoryId(categoryId);
+
+    if (categoryId === ALL_CATEGORIES_CHIP.id) {
+      navigateToCategory(foodCategory.id, 'search');
+      return;
+    }
+
+    navigateToCategory(foodCategory.id, 'search', { subcategoryId: categoryId });
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -50,23 +80,25 @@ export default function ConsumerSearchScreen() {
             </View>
           </View>
 
-          <FlatList
-            data={searchCategories}
-            horizontal
-            keyExtractor={(item) => item.id}
-            renderItem={({ item, index }) => (
-              <CategoryChip
-                compact
-                label={item.label}
-                onPress={() =>
-                  router.push(`/(consumer)/categories/${item.id}?origin=search` as never)
-                }
-                selected={index === 0}
-              />
-            )}
-            ItemSeparatorComponent={() => <View style={styles.searchChipSeparator} />}
-            showsHorizontalScrollIndicator={false}
-          />
+          {isLoading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <FlatList
+              data={searchCategoryChips}
+              horizontal
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <CategoryChip
+                  compact
+                  label={item.label}
+                  onPress={() => handleSearchCategoryPress(item.id)}
+                  selected={selectedCategoryId === item.id}
+                />
+              )}
+              ItemSeparatorComponent={() => <View style={styles.searchChipSeparator} />}
+              showsHorizontalScrollIndicator={false}
+            />
+          )}
 
           <View style={styles.resultsPanel}>
             <Text style={styles.panelTitle}>Resultados em tempo real</Text>

@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/v1/health/", health_check, name="health"),
     path("api/v1/media/uploads/", MediaUploadView.as_view(), name="media-upload"),
     path("api/v1/", include("accounts.urls")),
+    path("api/v1/", include("stores.urls")),
 ]
 
 if settings.DEBUG:

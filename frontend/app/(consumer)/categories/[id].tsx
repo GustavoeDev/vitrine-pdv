@@ -1,25 +1,26 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip } from '@/src/components/features/CategoryChip';
 import { BottomNav, resolveBottomNavKey } from '@/src/components/ui/BottomNav';
 import { colors, spacing } from '@/src/constants/tokens';
-import { categoryStores } from '@/src/mocks/consumer';
+import { useCategories, useCategory } from '@/src/queries/useCategories';
+import { findCategoryById, resolveCategoryRoute } from '@/src/services/categories';
 import { Store } from '@/src/types';
-
-const subcategories = ['Todos', 'Padarias', 'Mercados', 'Fazendas', 'Doces'];
-
-function resolveCategoryTitle(id?: string | string[]) {
-  const value = Array.isArray(id) ? id[0] : id;
-
-  if (value === 'food' || value === 'all' || value === 'bakeries') {
-    return 'Alimentação';
-  }
-
-  return 'Alimentação';
-}
+import type { ApiCategory } from '@/src/types/category';
+import { getTopRatedStores } from '@/src/utils/storeFilters';
 
 function CategoryStoreRow({ origin, store }: { origin: string; store: Store }) {
   const hasPromotion = store.id !== 'quitanda-da-praca';
@@ -49,9 +50,107 @@ function CategoryStoreRow({ origin, store }: { origin: string; store: Store }) {
 }
 
 export default function CategoryStoresScreen() {
-  const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
+  const { id: rawId, origin, subcategoryId: subcategoryIdParam } = useLocalSearchParams<{
+    id: string;
+    origin?: string;
+    subcategoryId?: string;
+  }>();
   const activeBottomNav = resolveBottomNavKey(origin);
   const originParam = activeBottomNav;
+  const { data: allCategories = [], isLoading: isLoadingCategories } = useCategories();
+
+  const { parentId, initialSubcategoryId } = useMemo(
+    () => resolveCategoryRoute(rawId ?? 'all', allCategories),
+    [allCategories, rawId],
+  );
+
+  const { data: categoryDetail, isLoading: isLoadingDetail } = useCategory(
+    parentId !== 'all' ? parentId : undefined,
+  );
+
+  const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
+
+  const parentCategory = useMemo(() => {
+    if (parentId === 'all') {
+      return undefined;
+    }
+
+    return categoryDetail ?? findCategoryById(allCategories, parentId);
+  }, [allCategories, categoryDetail, parentId]);
+
+  const subcategoryItems = useMemo((): ApiCategory[] => {
+    if (parentId === 'all') {
+      return allCategories;
+    }
+
+    return parentCategory?.children ?? [];
+  }, [allCategories, parentCategory?.children, parentId]);
+
+  const subcategoryLabels = useMemo(
+    () => ['Todos', ...subcategoryItems.map((item) => item.name)],
+    [subcategoryItems],
+  );
+
+  const title = useMemo(() => {
+    if (parentId === 'all') {
+      return 'Todas as categorias';
+    }
+
+    return parentCategory?.name ?? 'Categoria';
+  }, [parentCategory?.name, parentId]);
+
+  const isLoading =
+    isLoadingCategories || (parentId !== 'all' && isLoadingDetail);
+
+  const topRatedStores = useMemo(() => {
+    if (parentId === 'all') {
+      if (!activeSubcategoryId) {
+        return getTopRatedStores(null);
+      }
+
+      const rootCategory = allCategories.find((category) => category.id === activeSubcategoryId);
+      return getTopRatedStores(rootCategory?.name ?? null);
+    }
+
+    if (!parentCategory) {
+      return [];
+    }
+
+    const activeChild = parentCategory.children.find(
+      (child) => child.id === activeSubcategoryId,
+    );
+
+    return getTopRatedStores(parentCategory.name, activeChild?.name ?? null);
+  }, [activeSubcategoryId, allCategories, parentCategory, parentId]);
+
+  useEffect(() => {
+    const paramSubcategoryId = Array.isArray(subcategoryIdParam)
+      ? subcategoryIdParam[0]
+      : subcategoryIdParam;
+
+    setActiveSubcategoryId(paramSubcategoryId ?? initialSubcategoryId ?? null);
+  }, [initialSubcategoryId, parentId, subcategoryIdParam]);
+
+  function handleSubcategoryPress(label: string) {
+    if (label === 'Todos') {
+      setActiveSubcategoryId(null);
+      return;
+    }
+
+    const match = subcategoryItems.find((item) => item.name === label);
+    if (match) {
+      setActiveSubcategoryId(match.id);
+    }
+  }
+
+  function isSubcategorySelected(label: string): boolean {
+    if (label === 'Todos') {
+      return activeSubcategoryId === null;
+    }
+
+    const match = subcategoryItems.find((item) => item.name === label);
+    return match?.id === activeSubcategoryId;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -71,8 +170,14 @@ export default function CategoryStoresScreen() {
                 <Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
               </Pressable>
               <View style={styles.titleWrap}>
-                <Text style={styles.title}>{resolveCategoryTitle(id)}</Text>
-                <Text style={styles.subtitle}>Lojas selecionadas para sua região</Text>
+                {isLoading ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : (
+                  <>
+                    <Text style={styles.title}>{title}</Text>
+                    <Text style={styles.subtitle}>Lojas mais avaliadas na região</Text>
+                  </>
+                )}
               </View>
             </View>
             <Pressable accessibilityRole="button" style={styles.iconButton}>
@@ -80,21 +185,32 @@ export default function CategoryStoresScreen() {
             </Pressable>
           </View>
 
-          <FlatList
-            data={subcategories}
-            horizontal
-            keyExtractor={(item) => item}
-            renderItem={({ item, index }) => (
-              <CategoryChip compact={false} label={item} selected={index === 0} />
-            )}
-            ItemSeparatorComponent={() => <View style={styles.chipSeparator} />}
-            showsHorizontalScrollIndicator={false}
-          />
+          {!isLoading ? (
+            <FlatList
+              data={subcategoryLabels}
+              horizontal
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <CategoryChip
+                  compact={false}
+                  label={item}
+                  onPress={() => handleSubcategoryPress(item)}
+                  selected={isSubcategorySelected(item)}
+                />
+              )}
+              ItemSeparatorComponent={() => <View style={styles.chipSeparator} />}
+              showsHorizontalScrollIndicator={false}
+            />
+          ) : null}
 
           <View style={styles.list}>
-            {categoryStores.map((store) => (
-              <CategoryStoreRow key={store.id} origin={originParam} store={store} />
-            ))}
+            {topRatedStores.length > 0 ? (
+              topRatedStores.map((store) => (
+                <CategoryStoreRow key={store.id} origin={originParam} store={store} />
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Nenhuma loja encontrada nesta categoria.</Text>
+            )}
           </View>
         </ScrollView>
 
@@ -211,5 +327,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '700',
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    lineHeight: 20,
   },
 });
