@@ -11,4 +11,5 @@ export interface CategoryChipItem {
   label: string;
   icon?: string;
   iconOutline?: string;
+  photo_url?: string | null;
 }

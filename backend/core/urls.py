@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/v1/media/uploads/", MediaUploadView.as_view(), name="media-upload"),
     path("api/v1/", include("accounts.urls")),
     path("api/v1/", include("stores.urls")),
+    path("api/v1/", include("catalog.urls")),
 ]
 
 if settings.DEBUG:

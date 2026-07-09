@@ -6,6 +6,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from catalog.models import Product
 from stores.models import Category, Store, StoreStatus
 from stores.permissions import IsStaffUser
 from stores.serializers import (
@@ -14,7 +15,9 @@ from stores.serializers import (
     CategoryDetailSerializer,
     CategorySerializer,
     CreateStoreSerializer,
+    PublicStoreListSerializer,
     RejectStoreSerializer,
+    SearchResultSerializer,
     StoreDetailSerializer,
 )
 from stores.services.store_registration import register_store
@@ -111,6 +114,96 @@ class AdminStoreApproveView(APIView):
         store = get_object_or_404(_admin_store_queryset(), pk=pk)
         store = approve_store(store=store, reviewer=request.user)
         return Response(AdminStoreDetailSerializer(store).data)
+
+
+def _public_store_queryset():
+    return (
+        Store.objects.filter(status=StoreStatus.ACTIVE)
+        .select_related("category", "address")
+        .prefetch_related("business_hours")
+        .order_by("-created_at")
+    )
+
+
+class PublicStoreListView(ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PublicStoreListSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = _public_store_queryset()
+        category_id = self.request.query_params.get("category_id")
+        subcategory = self.request.query_params.get("subcategory")
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        if subcategory:
+            queryset = queryset.filter(subcategory__icontains=subcategory)
+
+        limit = self.request.query_params.get("limit")
+        if limit:
+            try:
+                queryset = queryset[: int(limit)]
+            except ValueError:
+                pass
+
+        return queryset
+
+
+class PublicStoreDetailView(RetrieveAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = StoreDetailSerializer
+    queryset = _public_store_queryset()
+
+
+class SearchView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        query = request.query_params.get("q", "").strip()
+
+        if len(query) < 2:
+            return Response([])
+
+        stores = (
+            Store.objects.filter(status=StoreStatus.ACTIVE, name__icontains=query)
+            .select_related("category")
+            .order_by("name")[:10]
+        )
+        products = (
+            Product.objects.filter(is_active=True, name__icontains=query)
+            .select_related("store", "store__category")
+            .filter(store__status=StoreStatus.ACTIVE)
+            .order_by("name")[:10]
+        )
+
+        results = []
+
+        for store in stores:
+            results.append(
+                {
+                    "id": store.id,
+                    "type": "store",
+                    "title": store.name,
+                    "subtitle": store.subcategory or store.category.name,
+                    "store_id": store.id,
+                }
+            )
+
+        for product in products:
+            results.append(
+                {
+                    "id": product.id,
+                    "type": "product",
+                    "title": product.name,
+                    "subtitle": product.store.name,
+                    "store_id": product.store_id,
+                }
+            )
+
+        serializer = SearchResultSerializer(results, many=True)
+        return Response(serializer.data)
 
 
 class AdminStoreRejectView(APIView):

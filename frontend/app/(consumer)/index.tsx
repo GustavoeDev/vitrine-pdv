@@ -17,12 +17,15 @@ import { NearbyStoreCard } from '@/src/components/features/StoreCards';
 import { BottomNav } from '@/src/components/ui/BottomNav';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useCategories } from '@/src/queries/useCategories';
+import { usePublicStores } from '@/src/queries/useDiscovery';
 import { mapRootCategoriesToChips } from '@/src/services/categories';
+import { mapApiPublicStoreToStore } from '@/src/utils/consumerMappers';
 import { navigateToCategory } from '@/src/utils/navigation';
 import { getTopRatedStores, HOME_STORES_PREVIEW_LIMIT } from '@/src/utils/storeFilters';
 
 export default function ConsumerHomeScreen() {
   const { data: categories = [], isLoading } = useCategories();
+  const { data: apiStores = [] } = usePublicStores({ limit: 20 });
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const categoryChips = useMemo(() => mapRootCategoriesToChips(categories), [categories]);
 
@@ -34,10 +37,19 @@ export default function ConsumerHomeScreen() {
     return categoryChips.find((chip) => chip.id === selectedCategoryId)?.label ?? null;
   }, [categoryChips, selectedCategoryId]);
 
-  const topRatedStores = useMemo(
-    () => getTopRatedStores(selectedCategoryLabel),
-    [selectedCategoryLabel],
-  );
+  const topRatedStores = useMemo(() => {
+    if (apiStores.length > 0) {
+      const mappedStores = apiStores.map(mapApiPublicStoreToStore);
+      const filtered =
+        selectedCategoryLabel === null
+          ? mappedStores
+          : mappedStores.filter((store) => store.category === selectedCategoryLabel);
+
+      return filtered;
+    }
+
+    return getTopRatedStores(selectedCategoryLabel);
+  }, [apiStores, selectedCategoryLabel]);
 
   const previewStores = useMemo(
     () => topRatedStores.slice(0, HOME_STORES_PREVIEW_LIMIT),
@@ -105,6 +117,7 @@ export default function ConsumerHomeScreen() {
                     iconOutline={item.iconOutline}
                     label={item.label}
                     onPress={() => setSelectedCategoryId(item.id)}
+                    photoUrl={item.photo_url}
                     selected={selectedCategoryId === item.id}
                   />
                 )}
@@ -119,7 +132,13 @@ export default function ConsumerHomeScreen() {
             {previewStores.length > 0 ? (
               <View style={styles.storeList}>
                 {previewStores.map((store) => (
-                  <NearbyStoreCard key={store.id} store={store} />
+                  <NearbyStoreCard
+                    key={store.id}
+                    onPress={() =>
+                      router.push(`/(consumer)/stores/${store.id}?origin=home` as never)
+                    }
+                    store={store}
+                  />
                 ))}
               </View>
             ) : (

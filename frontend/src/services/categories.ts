@@ -19,6 +19,7 @@ export function mapCategoryToChip(category: ApiCategory): CategoryChipItem {
   return {
     id: category.id,
     label: category.name,
+    photo_url: category.photo_url,
     ...CATEGORY_ICON_MAP[category.name],
   };
 }

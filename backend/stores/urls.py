@@ -8,6 +8,9 @@ from stores.views import (
     AdminStoreSummaryView,
     CategoryDetailView,
     CategoryListView,
+    PublicStoreDetailView,
+    PublicStoreListView,
+    SearchView,
     StoreCreateView,
 )
 
@@ -15,6 +18,9 @@ urlpatterns = [
     path("categories/", CategoryListView.as_view(), name="category-list"),
     path("categories/<uuid:pk>/", CategoryDetailView.as_view(), name="category-detail"),
     path("stores/", StoreCreateView.as_view(), name="store-create"),
+    path("stores/list/", PublicStoreListView.as_view(), name="public-store-list"),
+    path("stores/<uuid:pk>/", PublicStoreDetailView.as_view(), name="public-store-detail"),
+    path("search/", SearchView.as_view(), name="search"),
     path("admin/stores/summary/", AdminStoreSummaryView.as_view(), name="admin-store-summary"),
     path("admin/stores/", AdminStoreListView.as_view(), name="admin-store-list"),
     path("admin/stores/<uuid:pk>/", AdminStoreDetailView.as_view(), name="admin-store-detail"),

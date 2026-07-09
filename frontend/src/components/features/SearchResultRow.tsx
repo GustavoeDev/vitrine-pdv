@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { SearchResult } from '@/src/types';
@@ -8,13 +8,23 @@ interface SearchResultRowProps {
   result: SearchResult;
   showIcon?: boolean;
   isLast?: boolean;
+  onPress?: () => void;
 }
 
-export function SearchResultRow({ result, showIcon = true, isLast = false }: SearchResultRowProps) {
+export function SearchResultRow({
+  result,
+  showIcon = true,
+  isLast = false,
+  onPress,
+}: SearchResultRowProps) {
   const isStore = result.type === 'store';
 
   return (
-    <View style={[styles.row, !isLast && styles.withBorder]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.row, !isLast && styles.withBorder]}
+    >
       {showIcon ? (
         <View style={[styles.iconWrap, isStore ? styles.primaryIconWrap : styles.mutedIconWrap]}>
           <Ionicons
@@ -28,7 +38,8 @@ export function SearchResultRow({ result, showIcon = true, isLast = false }: Sea
         <Text style={styles.title}>{result.title}</Text>
         <Text style={styles.subtitle}>{result.subtitle}</Text>
       </View>
-    </View>
+      <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+    </Pressable>
   );
 }
 

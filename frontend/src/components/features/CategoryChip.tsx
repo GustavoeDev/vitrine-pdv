@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing } from '@/src/constants/tokens';
 
@@ -7,6 +7,7 @@ interface CategoryChipProps {
   label: string;
   icon?: string;
   iconOutline?: string;
+  photoUrl?: string | null;
   onPress?: () => void;
   selected?: boolean;
   compact?: boolean;
@@ -16,11 +17,14 @@ export function CategoryChip({
   label,
   icon,
   iconOutline,
+  photoUrl,
   onPress,
   selected = false,
   compact = false,
 }: CategoryChipProps) {
-  const iconName = (selected ? icon : iconOutline ?? icon) as keyof typeof Ionicons.glyphMap | undefined;
+  const iconName = (selected ? icon : iconOutline ?? icon) as
+    | keyof typeof Ionicons.glyphMap
+    | undefined;
 
   return (
     <Pressable
@@ -29,7 +33,9 @@ export function CategoryChip({
       style={[styles.chip, selected ? styles.selectedChip : styles.defaultChip]}
     >
       <View style={styles.content}>
-        {iconName ? (
+        {photoUrl ? (
+          <Image source={{ uri: photoUrl }} style={[styles.photo, compact && styles.compactPhoto]} />
+        ) : iconName ? (
           <Ionicons
             color={selected ? colors.primary : colors.textSecondary}
             name={iconName}
@@ -63,6 +69,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  photo: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.neutralSoft,
+  },
+  compactPhoto: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
   },
   selectedChip: {
     backgroundColor: colors.primarySoft,

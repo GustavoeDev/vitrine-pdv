@@ -1,16 +1,26 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomNav, resolveBottomNavKey } from '@/src/components/ui/BottomNav';
 import { colors, radius, spacing } from '@/src/constants/tokens';
+import { DEFAULT_STORE_AVATAR } from '@/src/constants/images';
 import { consumerStore, storeProducts } from '@/src/mocks/consumer';
+import { useProduct, usePublicStore } from '@/src/queries/useDiscovery';
+import { mapApiProductToProduct } from '@/src/utils/consumerMappers';
 
 export default function ProductDetailScreen() {
   const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
   const activeBottomNav = resolveBottomNavKey(origin);
-  const product = storeProducts.find((item) => item.id === id) ?? storeProducts[0];
+  const { data: apiProduct, isLoading } = useProduct(id);
+  const { data: apiStore } = usePublicStore(apiProduct?.store_id);
+
+  const fallbackProduct = storeProducts.find((item) => item.id === id) ?? storeProducts[0];
+  const product = apiProduct ? mapApiProductToProduct(apiProduct) : fallbackProduct;
+  const storeName = apiProduct?.store_name ?? consumerStore.name;
+  const storeId = apiProduct?.store_id ?? consumerStore.id;
+  const storeAvatar = apiStore?.logo_url ?? apiStore?.cover_photo_url ?? DEFAULT_STORE_AVATAR;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -28,6 +38,8 @@ export default function ProductDetailScreen() {
             <Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
           </Pressable>
 
+          {isLoading ? <ActivityIndicator color={colors.primary} /> : null}
+
           <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
 
           <View style={styles.titleRow}>
@@ -41,14 +53,14 @@ export default function ProductDetailScreen() {
           <Text style={styles.description}>{product.description}</Text>
 
           <View style={styles.storeRow}>
-            <Image source={{ uri: consumerStore.avatarUrl }} style={styles.storeAvatar} />
+            <Image source={{ uri: storeAvatar }} style={styles.storeAvatar} />
             <View style={styles.storeInfo}>
-              <Text style={styles.storeName}>{consumerStore.name}</Text>
+              <Text style={styles.storeName}>{storeName}</Text>
               <Pressable
                 accessibilityRole="button"
                 onPress={() =>
                   router.push(
-                    `/(consumer)/stores/${consumerStore.id}?origin=${activeBottomNav}` as never,
+                    `/(consumer)/stores/${storeId}?origin=${activeBottomNav}` as never,
                   )
                 }
               >
@@ -58,8 +70,8 @@ export default function ProductDetailScreen() {
           </View>
 
           <Pressable accessibilityRole="button" style={styles.whatsAppButton}>
-            <Ionicons color={colors.white} name="logo-whatsapp" size={20} />
-            <Text style={styles.whatsAppText}>Chamar no WhatsApp</Text>
+            <Ionicons color={colors.white} name="logo-whatsapp" size={22} />
+            <Text style={styles.whatsAppText}>Falar no WhatsApp</Text>
           </Pressable>
         </ScrollView>
 
@@ -78,24 +90,23 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
-    gap: spacing.lg,
   },
   scrollContent: {
     paddingTop: 24,
     paddingBottom: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
     backgroundColor: colors.neutralSoft,
   },
   productImage: {
     width: '100%',
-    height: 280,
+    height: 240,
     borderRadius: radius.lg - 4,
     backgroundColor: colors.neutralSoft,
   },
@@ -111,68 +122,69 @@ const styles = StyleSheet.create({
   },
   productName: {
     color: colors.textPrimary,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: '700',
   },
   category: {
     color: colors.textSecondary,
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '400',
   },
   price: {
     color: colors.primary,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 20,
+    lineHeight: 26,
     fontWeight: '700',
   },
   description: {
     color: colors.textSecondary,
     fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '400',
+    lineHeight: 22,
   },
   storeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg - 4,
+    backgroundColor: colors.surface,
   },
   storeAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: radius.sm,
     backgroundColor: colors.neutralSoft,
   },
   storeInfo: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   storeName: {
     color: colors.textPrimary,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 21,
     fontWeight: '700',
   },
   viewStoreLink: {
     color: colors.primary,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
   },
   whatsAppButton: {
-    height: 56,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     backgroundColor: '#25D366',
   },
   whatsAppText: {
     color: colors.white,
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 21,
     fontWeight: '700',
   },
 });

@@ -6,6 +6,7 @@ import { Store } from '@/src/types';
 
 interface NearbyStoreCardProps {
   store: Store;
+  onPress?: () => void;
 }
 
 interface FeaturedStoreCardProps {
@@ -17,15 +18,15 @@ interface FavoriteStoreCardProps {
   store: Store;
 }
 
-export function NearbyStoreCard({ store }: NearbyStoreCardProps) {
+export function NearbyStoreCard({ onPress, store }: NearbyStoreCardProps) {
   return (
-    <View style={styles.nearbyCard}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.nearbyCard}>
       <Image source={{ uri: store.coverImageUrl }} style={styles.nearbyImage} />
       <Text style={styles.storeName}>{store.name}</Text>
       <Text style={styles.metaText}>
         {store.category} • {store.distance} • {store.rating.toFixed(1)} ★ • {store.reviews} avaliações
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

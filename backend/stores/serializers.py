@@ -153,6 +153,25 @@ class StoreSummarySerializer(serializers.ModelSerializer):
         )
 
 
+class PublicStoreListSerializer(StoreSummarySerializer):
+    address_summary = serializers.SerializerMethodField()
+
+    class Meta(StoreSummarySerializer.Meta):
+        fields = StoreSummarySerializer.Meta.fields + ("address_summary",)
+
+    def get_address_summary(self, store: Store) -> str:
+        address = store.address
+        return f"{address.city}, {address.state}"
+
+
+class SearchResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    type = serializers.ChoiceField(choices=["store", "product"])
+    title = serializers.CharField()
+    subtitle = serializers.CharField()
+    store_id = serializers.UUIDField(required=False, allow_null=True)
+
+
 class StoreDetailSerializer(serializers.ModelSerializer):
     category_id = serializers.UUIDField(source="category.id", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)

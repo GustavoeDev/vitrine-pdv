@@ -4,6 +4,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomNav, BottomNavKey, resolveBottomNavKey } from '@/src/components/ui/BottomNav';
+import { DEFAULT_PRODUCT_IMAGE, DEFAULT_STORE_AVATAR, DEFAULT_STORE_COVER } from '@/src/constants/images';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import {
   consumerStore,
@@ -11,7 +12,13 @@ import {
   storeProducts,
   storeReviews,
 } from '@/src/mocks/consumer';
-import { Product, Review } from '@/src/types';
+import { usePublicStore, useStoreProducts } from '@/src/queries/useDiscovery';
+import type { ApiProductSummary, ApiPublicStore } from '@/src/services/consumerStores';
+import { Product, Review, Store } from '@/src/types';
+import {
+  formatProductPrice,
+  mapApiPublicStoreToStore,
+} from '@/src/utils/consumerMappers';
 
 type StoreTab = 'products' | 'reviews';
 
@@ -89,11 +96,55 @@ function StorePromotionCard({ origin }: { origin: BottomNavKey }) {
   );
 }
 
+function mapApiProductSummaryToProduct(apiProduct: ApiProductSummary): Product {
+  return {
+    id: apiProduct.id,
+    storeId: apiProduct.store_id,
+    name: apiProduct.name,
+    category: '',
+    description: '',
+    price: formatProductPrice(apiProduct.price),
+    imageUrl: apiProduct.photo_url ?? DEFAULT_PRODUCT_IMAGE,
+  };
+}
+
+function resolveStoreView(
+  apiStore: ReturnType<typeof usePublicStore>['data'],
+  fallbackStore: Store,
+): Store {
+  if (!apiStore) {
+    return fallbackStore;
+  }
+
+  return mapApiPublicStoreToStore({
+    id: apiStore.id,
+    name: apiStore.name,
+    status: apiStore.status,
+    category_id: apiStore.category_id,
+    category_name: apiStore.category_name,
+    subcategory: apiStore.subcategory,
+    logo_url: apiStore.logo_url,
+    cover_photo_url: apiStore.cover_photo_url,
+    address_summary: `${apiStore.address.city}, ${apiStore.address.state}`,
+  } satisfies ApiPublicStore);
+}
+
 export default function StoreProfileScreen() {
   const { id, origin, tab } = useLocalSearchParams<{ id: string; origin?: string; tab?: string }>();
   const activeTab = resolveTab(tab);
   const activeBottomNav = resolveBottomNavKey(origin);
-  const store = id === consumerStore.id ? consumerStore : consumerStore;
+  const { data: apiStore } = usePublicStore(id);
+  const { data: apiProducts = [] } = useStoreProducts(id);
+  const store = resolveStoreView(apiStore, consumerStore);
+  const products =
+    apiProducts.length > 0
+      ? apiProducts.map(mapApiProductSummaryToProduct)
+      : storeProducts;
+  const addressLine = apiStore
+    ? `${apiStore.address.street}, ${apiStore.address.number} • ${apiStore.address.district}`
+    : 'Rua da Matriz, 123 • Centro';
+  const coverImageUrl = apiStore?.cover_photo_url ?? store.coverImageUrl ?? DEFAULT_STORE_COVER;
+  const avatarUrl = apiStore?.logo_url ?? store.avatarUrl ?? DEFAULT_STORE_AVATAR;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -112,8 +163,8 @@ export default function StoreProfileScreen() {
           </Pressable>
 
           <View style={styles.coverWrap}>
-            <Image source={{ uri: store.coverImageUrl }} style={styles.coverImage} />
-            <Image source={{ uri: store.avatarUrl }} style={styles.storeAvatar} />
+            <Image source={{ uri: coverImageUrl }} style={styles.coverImage} />
+            <Image source={{ uri: avatarUrl }} style={styles.storeAvatar} />
           </View>
 
           <View style={styles.storeInfo}>
@@ -121,7 +172,7 @@ export default function StoreProfileScreen() {
             <Text style={styles.storeSubtitle}>
               {store.category} • {store.subcategory}
             </Text>
-            <Text style={styles.storeAddress}>Rua da Matriz, 123 • Centro</Text>
+            <Text style={styles.storeAddress}>{addressLine}</Text>
           </View>
 
           <View style={styles.actionsRow}>
@@ -164,7 +215,7 @@ export default function StoreProfileScreen() {
             <View style={styles.productsContent}>
               <StorePromotionCard origin={activeBottomNav} />
               <View style={styles.productGrid}>
-                {storeProducts.map((product) => (
+                {products.map((product) => (
                   <StoreProductCard
                     key={product.id}
                     origin={activeBottomNav}

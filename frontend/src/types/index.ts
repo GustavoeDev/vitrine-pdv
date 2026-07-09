@@ -186,6 +186,7 @@ export interface SearchResult {
   title: string;
   subtitle: string;
   type: 'store' | 'product';
+  store_id?: string | null;
 }
 
 export interface NotificationItem {

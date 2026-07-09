@@ -17,18 +17,20 @@ import { CategoryChip } from '@/src/components/features/CategoryChip';
 import { BottomNav, resolveBottomNavKey } from '@/src/components/ui/BottomNav';
 import { colors, spacing } from '@/src/constants/tokens';
 import { useCategories, useCategory } from '@/src/queries/useCategories';
+import { usePublicStores } from '@/src/queries/useDiscovery';
 import { findCategoryById, resolveCategoryRoute } from '@/src/services/categories';
 import { Store } from '@/src/types';
 import type { ApiCategory } from '@/src/types/category';
+import { mapApiPublicStoreToStore } from '@/src/utils/consumerMappers';
 import { getTopRatedStores } from '@/src/utils/storeFilters';
 
 function CategoryStoreRow({ origin, store }: { origin: string; store: Store }) {
-  const hasPromotion = store.id !== 'quitanda-da-praca';
+  const hasPromotion = false;
 
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={() => router.push(`/(consumer)/stores/loja-dos-calcados?origin=${origin}` as never)}
+      onPress={() => router.push(`/(consumer)/stores/${store.id}?origin=${origin}` as never)}
       style={styles.storeRow}
     >
       <Image source={{ uri: store.coverImageUrl }} style={styles.storeImage} />
@@ -102,7 +104,40 @@ export default function CategoryStoresScreen() {
   const isLoading =
     isLoadingCategories || (parentId !== 'all' && isLoadingDetail);
 
+  const activeChild = useMemo(() => {
+    if (!parentCategory || !activeSubcategoryId) {
+      return null;
+    }
+
+    return parentCategory.children.find((child) => child.id === activeSubcategoryId) ?? null;
+  }, [activeSubcategoryId, parentCategory]);
+
+  const storeFilters = useMemo(() => {
+    if (parentId === 'all') {
+      if (!activeSubcategoryId) {
+        return {};
+      }
+
+      return { categoryId: activeSubcategoryId };
+    }
+
+    if (activeChild) {
+      return {
+        categoryId: parentId,
+        subcategory: activeChild.name,
+      };
+    }
+
+    return { categoryId: parentId };
+  }, [activeChild, activeSubcategoryId, parentId]);
+
+  const { data: apiStores = [], isLoading: isLoadingStores } = usePublicStores(storeFilters);
+
   const topRatedStores = useMemo(() => {
+    if (apiStores.length > 0) {
+      return apiStores.map(mapApiPublicStoreToStore);
+    }
+
     if (parentId === 'all') {
       if (!activeSubcategoryId) {
         return getTopRatedStores(null);
@@ -116,12 +151,8 @@ export default function CategoryStoresScreen() {
       return [];
     }
 
-    const activeChild = parentCategory.children.find(
-      (child) => child.id === activeSubcategoryId,
-    );
-
     return getTopRatedStores(parentCategory.name, activeChild?.name ?? null);
-  }, [activeSubcategoryId, allCategories, parentCategory, parentId]);
+  }, [activeChild?.name, activeSubcategoryId, allCategories, apiStores, parentCategory, parentId]);
 
   useEffect(() => {
     const paramSubcategoryId = Array.isArray(subcategoryIdParam)
@@ -204,6 +235,7 @@ export default function CategoryStoresScreen() {
           ) : null}
 
           <View style={styles.list}>
+            {isLoadingStores ? <ActivityIndicator color={colors.primary} /> : null}
             {topRatedStores.length > 0 ? (
               topRatedStores.map((store) => (
                 <CategoryStoreRow key={store.id} origin={originParam} store={store} />
