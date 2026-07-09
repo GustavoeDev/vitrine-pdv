@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -15,8 +16,32 @@ import { AuthDivider } from '@/src/components/ui/AuthDivider';
 import { AuthLogo } from '@/src/components/ui/AuthLogo';
 import { AuthTextInput } from '@/src/components/ui/AuthTextInput';
 import { colors, spacing, typography } from '@/src/constants/tokens';
+import { useAuthStore } from '@/src/stores/authStore';
+import { getApiErrorMessage } from '@/src/utils/apiError';
 
 export default function LoginScreen() {
+  const login = useAuthStore((state) => state.login);
+  const isAuthenticating = useAuthStore((state) => state.isAuthenticating);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleLogin() {
+    if (!email.trim() || !password) {
+      setError('Informe email e senha.');
+      return;
+    }
+
+    setError(null);
+
+    try {
+      await login({ email: email.trim(), password });
+      router.replace('/(consumer)' as never);
+    } catch (loginError) {
+      setError(getApiErrorMessage(loginError, 'Não foi possível entrar. Verifique seus dados.'));
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -34,17 +59,26 @@ export default function LoginScreen() {
             autoComplete="email"
             keyboardType="email-address"
             label="Email"
+            onChangeText={setEmail}
             placeholder="seu@email.com"
             textContentType="emailAddress"
+            value={email}
           />
           <AuthTextInput
             autoComplete="password"
             isPassword
             label="Senha"
+            onChangeText={setPassword}
             placeholder="Digite sua senha"
             textContentType="password"
+            value={password}
           />
-          <AuthButton label="Entrar" onPress={() => router.replace('/(consumer)' as never)} />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <AuthButton
+            disabled={isAuthenticating}
+            label={isAuthenticating ? 'Entrando...' : 'Entrar'}
+            onPress={handleLogin}
+          />
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
@@ -55,6 +89,7 @@ export default function LoginScreen() {
           </Pressable>
           <AuthDivider />
           <AuthButton
+            disabled={isAuthenticating}
             label="Criar conta grátis"
             onPress={() => router.push('./register')}
             variant="outline"
@@ -83,6 +118,10 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
     gap: spacing.md,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.danger,
   },
   forgotButton: {
     alignSelf: 'flex-start',

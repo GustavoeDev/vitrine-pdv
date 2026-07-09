@@ -18,9 +18,45 @@ import { AuthLogo } from '@/src/components/ui/AuthLogo';
 import { AuthTextInput } from '@/src/components/ui/AuthTextInput';
 import { AvatarPicker } from '@/src/components/ui/AvatarPicker';
 import { colors, spacing, typography } from '@/src/constants/tokens';
+import { useAuthStore } from '@/src/stores/authStore';
+import { getApiErrorMessage } from '@/src/utils/apiError';
 
 export default function RegisterScreen() {
+  const register = useAuthStore((state) => state.register);
+  const isAuthenticating = useAuthStore((state) => state.isAuthenticating);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleRegister() {
+    if (!name.trim() || !email.trim() || !password || !passwordConfirm) {
+      setError('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    if (password !== passwordConfirm) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+
+    setError(null);
+
+    try {
+      await register({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        password_confirm: passwordConfirm,
+        avatarUri,
+      });
+      router.replace('/(consumer)' as never);
+    } catch (registerError) {
+      setError(getApiErrorMessage(registerError, 'Não foi possível criar a conta.'));
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -47,32 +83,45 @@ export default function RegisterScreen() {
             <AuthTextInput
               autoComplete="name"
               label="Nome completo"
+              onChangeText={setName}
               placeholder="Digite seu nome"
               textContentType="name"
+              value={name}
             />
             <AuthTextInput
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               label="Email"
+              onChangeText={setEmail}
               placeholder="seu@email.com"
               textContentType="emailAddress"
+              value={email}
             />
             <AuthTextInput
               autoComplete="new-password"
               isPassword
               label="Senha"
+              onChangeText={setPassword}
               placeholder="Digite sua senha"
               textContentType="newPassword"
+              value={password}
             />
             <AuthTextInput
               autoComplete="new-password"
               isPassword
               label="Confirme sua senha"
+              onChangeText={setPasswordConfirm}
               placeholder="Digite sua senha novamente"
               textContentType="newPassword"
+              value={passwordConfirm}
             />
-            <AuthButton label="Criar conta" />
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            <AuthButton
+              disabled={isAuthenticating}
+              label={isAuthenticating ? 'Criando conta...' : 'Criar conta'}
+              onPress={handleRegister}
+            />
             <AuthDivider />
           </View>
 
@@ -112,6 +161,11 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.danger,
+    width: '100%',
   },
   loginFooter: {
     minHeight: 44,

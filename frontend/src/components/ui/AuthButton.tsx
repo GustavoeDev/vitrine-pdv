@@ -6,19 +6,23 @@ interface AuthButtonProps {
   label: string;
   onPress?: () => void;
   variant?: 'primary' | 'outline';
+  disabled?: boolean;
 }
 
-export function AuthButton({ label, onPress, variant = 'primary' }: AuthButtonProps) {
+export function AuthButton({ label, onPress, variant = 'primary', disabled = false }: AuthButtonProps) {
   const isPrimary = variant === 'primary';
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
         isPrimary ? styles.primaryButton : styles.outlineButton,
-        pressed && styles.pressed,
+        disabled && styles.disabled,
+        pressed && !disabled && styles.pressed,
       ]}
     >
       <Text style={[styles.label, isPrimary ? styles.primaryLabel : styles.outlineLabel]}>
@@ -48,6 +52,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.86,
+  },
+  disabled: {
+    opacity: 0.55,
   },
   label: {
     ...typography.button,

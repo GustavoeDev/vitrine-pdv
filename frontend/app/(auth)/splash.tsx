@@ -6,15 +6,33 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthLogo } from '@/src/components/ui/AuthLogo';
 import { colors, spacing } from '@/src/constants/tokens';
+import { useAuthStore } from '@/src/stores/authStore';
 
 export default function SplashScreen() {
+  const hydrate = useAuthStore((state) => state.hydrate);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
+  const accessToken = useAuthStore((state) => state.accessToken);
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      router.replace('./login');
+      void hydrate();
     }, 1800);
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    if (accessToken) {
+      router.replace('/(consumer)' as never);
+      return;
+    }
+
+    router.replace('./login');
+  }, [accessToken, isHydrated]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
