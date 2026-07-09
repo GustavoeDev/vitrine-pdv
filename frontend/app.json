@@ -32,7 +32,8 @@
           "locationWhenInUsePermission": "O app usa sua localização para mostrar lojas próximas no mapa."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

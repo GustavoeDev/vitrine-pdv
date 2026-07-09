@@ -6,42 +6,6 @@ from catalog.models import Product
 from marketing.models import ProductDiscount
 
 
-class ProductSummarySerializer(serializers.ModelSerializer):
-    store_id = serializers.UUIDField(source="store.id", read_only=True)
-    store_name = serializers.CharField(source="store.name", read_only=True)
-
-    class Meta:
-        model = Product
-        fields = (
-            "id",
-            "store_id",
-            "store_name",
-            "name",
-            "price",
-            "photo_url",
-        )
-
-
-class ProductDetailSerializer(serializers.ModelSerializer):
-    store_id = serializers.UUIDField(source="store.id", read_only=True)
-    store_name = serializers.CharField(source="store.name", read_only=True)
-    category_name = serializers.CharField(source="store.category.name", read_only=True)
-
-    class Meta:
-        model = Product
-        fields = (
-            "id",
-            "store_id",
-            "store_name",
-            "category_name",
-            "name",
-            "description",
-            "price",
-            "photo_url",
-            "created_at",
-        )
-
-
 class ProductDiscountSerializer(serializers.ModelSerializer):
     product_id = serializers.UUIDField(source="product.id", read_only=True)
 
@@ -56,6 +20,67 @@ class ProductDiscountSerializer(serializers.ModelSerializer):
             "end_date",
             "is_active",
         )
+
+
+def resolve_active_discount(product: Product) -> dict | None:
+    discounts = getattr(product, "active_discounts", None)
+    if discounts is not None:
+        discount = discounts[0] if discounts else None
+    else:
+        discount = (
+            product.discounts.filter(is_active=True).order_by("-start_date").first()
+        )
+
+    if discount is None:
+        return None
+
+    return ProductDiscountSerializer(discount).data
+
+
+class ProductSummarySerializer(serializers.ModelSerializer):
+    store_id = serializers.UUIDField(source="store.id", read_only=True)
+    store_name = serializers.CharField(source="store.name", read_only=True)
+    active_discount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = (
+            "id",
+            "store_id",
+            "store_name",
+            "name",
+            "price",
+            "photo_url",
+            "active_discount",
+        )
+
+    def get_active_discount(self, product: Product) -> dict | None:
+        return resolve_active_discount(product)
+
+
+class ProductDetailSerializer(serializers.ModelSerializer):
+    store_id = serializers.UUIDField(source="store.id", read_only=True)
+    store_name = serializers.CharField(source="store.name", read_only=True)
+    category_name = serializers.CharField(source="store.category.name", read_only=True)
+    active_discount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = (
+            "id",
+            "store_id",
+            "store_name",
+            "category_name",
+            "name",
+            "description",
+            "price",
+            "photo_url",
+            "created_at",
+            "active_discount",
+        )
+
+    def get_active_discount(self, product: Product) -> dict | None:
+        return resolve_active_discount(product)
 
 
 class MerchantProductSerializer(serializers.ModelSerializer):
@@ -79,18 +104,7 @@ class MerchantProductSerializer(serializers.ModelSerializer):
         )
 
     def get_active_discount(self, product: Product) -> dict | None:
-        discounts = getattr(product, "active_discounts", None)
-        if discounts is not None:
-            discount = discounts[0] if discounts else None
-        else:
-            discount = (
-                product.discounts.filter(is_active=True).order_by("-start_date").first()
-            )
-
-        if discount is None:
-            return None
-
-        return ProductDiscountSerializer(discount).data
+        return resolve_active_discount(product)
 
 
 class CreateMerchantProductSerializer(serializers.ModelSerializer):

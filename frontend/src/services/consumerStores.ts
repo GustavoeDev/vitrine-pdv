@@ -51,6 +51,16 @@ const storeDetailSchema = z.object({
   created_at: z.string(),
 });
 
+const productDiscountSchema = z.object({
+  id: z.string().uuid(),
+  product_id: z.string().uuid(),
+  original_price: z.string(),
+  discounted_price: z.string(),
+  start_date: z.string(),
+  end_date: z.string(),
+  is_active: z.boolean(),
+});
+
 const productSummarySchema = z.object({
   id: z.string().uuid(),
   store_id: z.string().uuid(),
@@ -58,6 +68,7 @@ const productSummarySchema = z.object({
   name: z.string(),
   price: z.string(),
   photo_url: z.string().nullable(),
+  active_discount: productDiscountSchema.nullable(),
 });
 
 const productDetailSchema = z.object({
@@ -70,6 +81,7 @@ const productDetailSchema = z.object({
   price: z.string(),
   photo_url: z.string().nullable(),
   created_at: z.string(),
+  active_discount: productDiscountSchema.nullable(),
 });
 
 export type ApiPublicStore = z.infer<typeof publicStoreSchema>;

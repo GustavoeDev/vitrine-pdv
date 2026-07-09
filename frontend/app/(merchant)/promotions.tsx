@@ -1,17 +1,34 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MerchantPromotionCard } from '@/src/components/merchant/MerchantPromotionCard';
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
-import { colors, spacing } from '@/src/constants/tokens';
+import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useMerchant } from '@/src/contexts/MerchantContext';
 import { MerchantPromotionStatus } from '@/src/types/merchant';
 
+const FILTERS: Array<{ key: MerchantPromotionStatus; label: string }> = [
+  { key: 'active', label: 'Ativas' },
+  { key: 'scheduled', label: 'Agendadas' },
+  { key: 'ended', label: 'Encerradas' },
+];
+
 export default function MerchantPromotionsScreen() {
-  const { promotions, updatePromotionStatus } = useMerchant();
+  const { promotions, isLoadingPromotions, isSavingPromotion, updatePromotionStatus } = useMerchant();
   const [filter, setFilter] = useState<MerchantPromotionStatus>('active');
+
+  const counts = useMemo(() => {
+    return FILTERS.reduce<Record<MerchantPromotionStatus, number>>(
+      (accumulator, item) => {
+        accumulator[item.key] = promotions.filter((promotion) => promotion.status === item.key).length;
+        return accumulator;
+      },
+      { active: 0, scheduled: 0, ended: 0 },
+    );
+  }, [promotions]);
 
   const filteredPromotions = useMemo(
     () => promotions.filter((promotion) => promotion.status === filter),
@@ -23,74 +40,73 @@ export default function MerchantPromotionsScreen() {
       <View style={styles.screen}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>Minhas Promocoes</Text>
+            <View>
+              <Text style={styles.title}>Minhas Promoções</Text>
+              <Text style={styles.subtitle}>{promotions.length} promoções cadastradas</Text>
+            </View>
           </View>
 
           <View style={styles.tabs}>
-            {[
-              ['active', 'Ativas'],
-              ['scheduled', 'Agendadas'],
-              ['ended', 'Encerradas'],
-            ].map(([key, label]) => {
-              const isActive = filter === key;
+            {FILTERS.map((item) => {
+              const isActive = filter === item.key;
+
               return (
-                <Pressable key={key} onPress={() => setFilter(key as MerchantPromotionStatus)} style={styles.tab}>
-                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>{label}</Text>
-                  {isActive ? <View style={styles.activeLine} /> : null}
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="button"
+                  onPress={() => setFilter(item.key)}
+                  style={[styles.tab, isActive && styles.tabActive]}
+                >
+                  <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                    {item.label}
+                  </Text>
+                  <View style={[styles.countBadge, isActive && styles.countBadgeActive]}>
+                    <Text style={[styles.countText, isActive && styles.countTextActive]}>
+                      {counts[item.key]}
+                    </Text>
+                  </View>
                 </Pressable>
               );
             })}
           </View>
 
-          <View style={styles.list}>
-            {filteredPromotions.map((promotion) => (
-              <View key={promotion.id} style={styles.card}>
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle}>{promotion.title}</Text>
-                  {promotion.original_price ? (
-                    <Text style={styles.oldPrice}>
-                      De{' '}
-                      {promotion.original_price.toLocaleString('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      })}
-                    </Text>
-                  ) : null}
-                  {promotion.discounted_price ? (
-                    <Text style={styles.newPrice}>
-                      Por{' '}
-                      {promotion.discounted_price.toLocaleString('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      })}
-                    </Text>
-                  ) : null}
-                  <Text style={styles.badge}>{promotion.badge_text ?? formatPromotionDateRange(promotion.start_date, promotion.end_date)}</Text>
-                </View>
-                <View style={styles.actions}>
-                  <Pressable style={styles.actionButton}>
-                    <Text style={styles.actionText}>Editar</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() =>
-                      updatePromotionStatus(
-                        promotion.id,
-                        promotion.status === 'active' ? 'ended' : 'active',
-                      )
-                    }
-                    style={styles.actionButton}
-                  >
-                    <Text style={styles.actionText}>
-                      {promotion.status === 'active' ? 'Pausar' : 'Reativar'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-          </View>
+          {isLoadingPromotions ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={colors.primary} size="large" />
+            </View>
+          ) : filteredPromotions.length === 0 ? (
+            <View style={styles.emptyWrap}>
+              <Ionicons color={colors.textMuted} name="pricetag-outline" size={40} />
+              <Text style={styles.emptyTitle}>Nenhuma promoção {FILTERS.find((item) => item.key === filter)?.label.toLowerCase()}</Text>
+              <Text style={styles.emptySubtitle}>
+                Crie uma nova promoção para destacar sua loja na home dos clientes.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.list}>
+              {filteredPromotions.map((promotion) => (
+                <MerchantPromotionCard
+                  key={promotion.id}
+                  isSaving={isSavingPromotion}
+                  onEdit={() => router.push(`/(merchant)/promotions/${promotion.id}` as never)}
+                  onToggleStatus={() =>
+                    void updatePromotionStatus(
+                      promotion,
+                      promotion.status === 'active' ? 'ended' : 'active',
+                    )
+                  }
+                  promotion={promotion}
+                />
+              ))}
+            </View>
+          )}
         </ScrollView>
 
-        <Pressable accessibilityRole="button" onPress={() => router.push('/(merchant)/promotions/new')} style={styles.fab}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(merchant)/promotions/new')}
+          style={styles.fab}
+        >
           <Ionicons color={colors.white} name="add" size={28} />
         </Pressable>
 
@@ -100,43 +116,85 @@ export default function MerchantPromotionsScreen() {
   );
 }
 
-function formatPromotionDateRange(startDate: string, endDate: string) {
-  const start = new Date(startDate).toLocaleDateString('pt-BR');
-  const end = new Date(endDate).toLocaleDateString('pt-BR');
-
-  return `${start} a ${end}`;
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   screen: { flex: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 10 },
   scrollContent: { paddingTop: 24, paddingBottom: 96, gap: spacing.md },
-  header: { paddingVertical: 8 },
+  header: { paddingVertical: 4 },
   title: { color: colors.textPrimary, fontSize: 20, lineHeight: 26, fontWeight: '700' },
-  tabs: { flexDirection: 'row', justifyContent: 'space-between' },
-  tab: { flex: 1, alignItems: 'center', gap: 8, paddingBottom: 8 },
-  tabText: { color: colors.textSecondary, fontSize: 14, lineHeight: 19, fontWeight: '400' },
-  activeTabText: { color: colors.primary, fontWeight: '700' },
-  activeLine: { width: '100%', height: 2, backgroundColor: colors.primary },
-  list: { gap: spacing.md },
-  card: {
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-    overflow: 'hidden',
+  subtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 19, fontWeight: '400' },
+  tabs: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
-  cardContent: { gap: 4, padding: 12 },
-  cardTitle: { color: colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '700' },
-  oldPrice: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '400' },
-  newPrice: { color: colors.primary, fontSize: 16, lineHeight: 21, fontWeight: '700' },
-  badge: { color: colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: '400' },
-  actions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border },
-  actionButton: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
-  actionText: { color: '#4B5563', fontSize: 13, lineHeight: 18, fontWeight: '400' },
+  tab: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    backgroundColor: colors.neutralSoft,
+  },
+  tabActive: {
+    backgroundColor: colors.primarySoft,
+  },
+  tabText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  countBadge: {
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
+  },
+  countBadgeActive: {
+    backgroundColor: colors.primary,
+  },
+  countText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+  },
+  countTextActive: {
+    color: colors.white,
+  },
+  loadingWrap: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+  },
+  emptyWrap: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  list: { gap: spacing.md },
   fab: {
     position: 'absolute',
     right: spacing.lg,
@@ -147,5 +205,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });

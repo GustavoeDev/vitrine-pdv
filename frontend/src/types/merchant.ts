@@ -67,6 +67,19 @@ export interface MerchantCreatePromotionInput {
   product_id?: string;
   discounted_price?: number;
   discount_total?: number;
+  banner_url?: string;
+}
+
+export interface MerchantUpdatePromotionInput {
+  promotion_type: MerchantPromotionType;
+  title?: string;
+  description?: string;
+  banner_url?: string | null;
+  start_date?: string;
+  end_date?: string;
+  notify_favorites?: boolean;
+  discounted_price?: number;
+  discount_total?: number;
 }
 
 export interface MerchantStatsSnapshot {

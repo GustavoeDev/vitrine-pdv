@@ -12,6 +12,8 @@ urlpatterns = [
     path("api/v1/", include("accounts.urls")),
     path("api/v1/", include("stores.urls")),
     path("api/v1/", include("catalog.urls")),
+    path("api/v1/", include("marketing.urls")),
+    path("api/v1/", include("engagement.urls")),
 ]
 
 if settings.DEBUG:

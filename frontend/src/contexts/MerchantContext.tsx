@@ -3,7 +3,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import {
   merchantProfileMock,
-  merchantPromotionsMock,
   merchantStatsByRangeMock,
 } from '@/src/mocks/merchant';
 import {
@@ -12,11 +11,19 @@ import {
   fetchMerchantProducts,
   updateMerchantProduct,
 } from '@/src/services/merchantProducts';
+import {
+  createMerchantPromotionItem,
+  fetchMerchantPromotionsList,
+  updateMerchantPromotionItem,
+  updateMerchantPromotionItemStatus,
+} from '@/src/services/merchantPromotions';
 import { discoveryKeys } from '@/src/queries/useDiscovery';
+import { promotionKeys } from '@/src/queries/usePromotions';
 import { useAuthStore } from '@/src/stores/authStore';
 import {
   MerchantCreateProductInput,
   MerchantCreatePromotionInput,
+  MerchantUpdatePromotionInput,
   MerchantProfileData,
   MerchantPromotion,
   MerchantPromotionStatus,
@@ -29,6 +36,10 @@ export const merchantProductKeys = {
   all: (storeId?: string) => ['merchant', 'products', storeId ?? 'default'] as const,
 };
 
+export const merchantPromotionKeys = {
+  all: (storeId?: string) => ['merchant', 'promotions', storeId ?? 'default'] as const,
+};
+
 interface MerchantContextValue {
   profile: MerchantProfileData;
   activeStoreId?: string;
@@ -37,14 +48,23 @@ interface MerchantContextValue {
   isLoadingProducts: boolean;
   isSavingProduct: boolean;
   promotions: MerchantPromotion[];
+  isLoadingPromotions: boolean;
+  isSavingPromotion: boolean;
   statsRange: MerchantStatsRange;
   setStatsRange: (range: MerchantStatsRange) => void;
   updateProfile: (patch: Partial<MerchantProfileData>) => void;
   addProduct: (input: MerchantCreateProductInput) => Promise<void>;
   toggleProduct: (productId: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
-  addPromotion: (input: MerchantCreatePromotionInput) => void;
-  updatePromotionStatus: (promotionId: string, status: MerchantPromotionStatus) => void;
+  addPromotion: (input: MerchantCreatePromotionInput) => Promise<void>;
+  updatePromotion: (
+    promotionId: string,
+    input: MerchantUpdatePromotionInput,
+  ) => Promise<void>;
+  updatePromotionStatus: (
+    promotion: MerchantPromotion,
+    status: MerchantPromotionStatus,
+  ) => Promise<void>;
 }
 
 const MerchantContext = createContext<MerchantContextValue | null>(null);
@@ -57,7 +77,6 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const hasStore = Boolean(activeStoreId);
 
   const [profile, setProfile] = useState(merchantProfileMock);
-  const [promotions, setPromotions] = useState(merchantPromotionsMock);
   const [statsRange, setStatsRange] = useState<MerchantStatsRange>('30d');
 
   useEffect(() => {
@@ -91,8 +110,21 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     enabled: hasStore,
   });
 
+  const promotionsQuery = useQuery({
+    queryKey: merchantPromotionKeys.all(activeStoreId),
+    queryFn: () => fetchMerchantPromotionsList(activeStoreId),
+    enabled: hasStore,
+  });
+
   const invalidateConsumerProducts = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: discoveryKeys.allStoreProducts });
+  }, [queryClient]);
+
+  const invalidateConsumerPromotions = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: promotionKeys.featured }),
+      queryClient.invalidateQueries({ queryKey: promotionKeys.favorites }),
+    ]);
   }, [queryClient]);
 
   const createProductMutation = useMutation({
@@ -115,6 +147,43 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: merchantProductKeys.all(activeStoreId) });
       await invalidateConsumerProducts();
+    },
+  });
+
+  const createPromotionMutation = useMutation({
+    mutationFn: (input: MerchantCreatePromotionInput) =>
+      createMerchantPromotionItem(input, activeStoreId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: merchantPromotionKeys.all(activeStoreId) });
+      await Promise.all([invalidateConsumerPromotions(), invalidateConsumerProducts()]);
+    },
+  });
+
+  const updatePromotionStatusMutation = useMutation({
+    mutationFn: ({
+      promotion,
+      status,
+    }: {
+      promotion: MerchantPromotion;
+      status: MerchantPromotionStatus;
+    }) => updateMerchantPromotionItemStatus(promotion, status),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: merchantPromotionKeys.all(activeStoreId) });
+      await Promise.all([invalidateConsumerPromotions(), invalidateConsumerProducts()]);
+    },
+  });
+
+  const updatePromotionMutation = useMutation({
+    mutationFn: ({
+      promotionId,
+      input,
+    }: {
+      promotionId: string;
+      input: MerchantUpdatePromotionInput;
+    }) => updateMerchantPromotionItem(promotionId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: merchantPromotionKeys.all(activeStoreId) });
+      await Promise.all([invalidateConsumerPromotions(), invalidateConsumerProducts()]);
     },
   });
 
@@ -160,41 +229,24 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addPromotion = useCallback(
-    (input: MerchantCreatePromotionInput) => {
-      const selectedProduct = (productsQuery.data ?? []).find(
-        (product) => product.id === input.product_id,
-      );
-
-      setPromotions((current) => [
-        {
-          id: `${Date.now()}`,
-          store_id: profile.store.id,
-          status: 'active',
-          banner_url: selectedProduct?.photo_url ?? null,
-          original_price: selectedProduct?.price,
-          discounted_price: input.discounted_price,
-          discount_total: input.discount_total,
-          badge_text: input.notify_favorites
-            ? 'Favoritos serão avisados'
-            : 'Ativa sem notificação',
-          product_id: input.product_id ?? null,
-          ...input,
-        },
-        ...current,
-      ]);
+    async (input: MerchantCreatePromotionInput) => {
+      await createPromotionMutation.mutateAsync(input);
     },
-    [productsQuery.data, profile.store.id],
+    [createPromotionMutation],
+  );
+
+  const updatePromotion = useCallback(
+    async (promotionId: string, input: MerchantUpdatePromotionInput) => {
+      await updatePromotionMutation.mutateAsync({ promotionId, input });
+    },
+    [updatePromotionMutation],
   );
 
   const updatePromotionStatus = useCallback(
-    (promotionId: string, status: MerchantPromotionStatus) => {
-      setPromotions((current) =>
-        current.map((promotion) =>
-          promotion.id === promotionId ? { ...promotion, status } : promotion,
-        ),
-      );
+    async (promotion: MerchantPromotion, status: MerchantPromotionStatus) => {
+      await updatePromotionStatusMutation.mutateAsync({ promotion, status });
     },
-    [],
+    [updatePromotionStatusMutation],
   );
 
   const value = useMemo(
@@ -208,7 +260,12 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         createProductMutation.isPending ||
         updateProductMutation.isPending ||
         deleteProductMutation.isPending,
-      promotions,
+      promotions: promotionsQuery.data ?? [],
+      isLoadingPromotions: promotionsQuery.isLoading,
+      isSavingPromotion:
+        createPromotionMutation.isPending ||
+        updatePromotionMutation.isPending ||
+        updatePromotionStatusMutation.isPending,
       statsRange,
       setStatsRange,
       updateProfile,
@@ -216,6 +273,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       toggleProduct,
       deleteProduct,
       addPromotion,
+      updatePromotion,
       updatePromotionStatus,
     }),
     [
@@ -224,16 +282,21 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       activeStoreId,
       productsQuery.data,
       productsQuery.isLoading,
+      promotionsQuery.data,
+      promotionsQuery.isLoading,
       createProductMutation.isPending,
       updateProductMutation.isPending,
       deleteProductMutation.isPending,
-      promotions,
+      createPromotionMutation.isPending,
+      updatePromotionMutation.isPending,
+      updatePromotionStatusMutation.isPending,
       statsRange,
       updateProfile,
       addProduct,
       toggleProduct,
       deleteProduct,
       addPromotion,
+      updatePromotion,
       updatePromotionStatus,
     ],
   );

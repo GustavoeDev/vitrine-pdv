@@ -18,7 +18,7 @@ import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useProduct, usePublicStore } from '@/src/queries/useDiscovery';
 import { recordProductView } from '@/src/services/consumerStores';
-import { mapApiProductToProduct } from '@/src/utils/consumerMappers';
+import { mapApiProductToProduct, formatProductPrice } from '@/src/utils/consumerMappers';
 import { openWhatsApp } from '@/src/utils/whatsapp';
 
 export default function ProductDetailScreen() {
@@ -39,6 +39,7 @@ export default function ProductDetailScreen() {
   }, [apiProduct, id]);
 
   const product = apiProduct ? mapApiProductToProduct(apiProduct) : null;
+  const hasDiscount = Boolean(product?.active_discount?.is_active);
   const storeName = apiProduct?.store_name ?? '';
   const storeId = apiProduct?.store_id ?? '';
   const storeAvatar = apiStore?.logo_url ?? apiStore?.cover_photo_url ?? DEFAULT_STORE_AVATAR;
@@ -113,7 +114,16 @@ export default function ProductDetailScreen() {
               <Text style={styles.productName}>{product.name}</Text>
               <Text style={styles.category}>{product.category}</Text>
             </View>
-            <Text style={styles.price}>{product.price}</Text>
+            {hasDiscount && product.active_discount ? (
+              <View style={styles.priceColumn}>
+                <Text style={styles.originalPrice}>
+                  {formatProductPrice(product.active_discount.original_price)}
+                </Text>
+                <Text style={styles.price}>{product.price}</Text>
+              </View>
+            ) : (
+              <Text style={styles.price}>{product.price}</Text>
+            )}
           </View>
 
           <Text style={styles.description}>
@@ -226,6 +236,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 15,
     lineHeight: 20,
+  },
+  priceColumn: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  originalPrice: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '500',
+    textDecorationLine: 'line-through',
   },
   price: {
     color: colors.primary,

@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from catalog.models import Product, ProductView
+from marketing.models import ProductDiscount
 from stores.models import Category, StoreStatus
 from stores.services.store_registration import register_store
 from stores.services.store_review import approve_store
@@ -86,6 +87,34 @@ def test_store_product_list_returns_only_active_products(
     assert len(response.data) == 1
     assert response.data[0]["name"] == "Pão caseiro"
     assert response.data[0]["store_name"] == "Padaria São José"
+
+
+@pytest.mark.django_db
+def test_store_product_list_includes_active_discount(
+    api_client: APIClient,
+    active_store,
+    active_product,
+) -> None:
+    from django.utils import timezone
+    from datetime import timedelta
+
+    now = timezone.now()
+    ProductDiscount.objects.create(
+        product=active_product,
+        original_price=active_product.price,
+        discounted_price="9.90",
+        start_date=now - timedelta(days=1),
+        end_date=now + timedelta(days=7),
+        is_active=True,
+    )
+
+    response = api_client.get(
+        reverse("store-product-list", kwargs={"store_id": active_store.id}),
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data[0]["active_discount"] is not None
+    assert response.data[0]["active_discount"]["discounted_price"] == "9.90"
 
 
 @pytest.mark.django_db

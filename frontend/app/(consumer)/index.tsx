@@ -13,19 +13,27 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CategoryChip } from '@/src/components/features/CategoryChip';
+import { PromotionBanner } from '@/src/components/features/PromotionBanner';
 import { NearbyStoreCard } from '@/src/components/features/StoreCards';
 import { BottomNav } from '@/src/components/ui/BottomNav';
-import { colors, radius, spacing } from '@/src/constants/tokens';
+import { colors, spacing } from '@/src/constants/tokens';
 import { useCategories } from '@/src/queries/useCategories';
 import { usePublicStores } from '@/src/queries/useDiscovery';
+import { useFavoritePromotions, useFeaturedPromotion } from '@/src/queries/usePromotions';
+import type { ApiConsumerPromotion } from '@/src/services/promotions';
 import { mapRootCategoriesToChips } from '@/src/services/categories';
 import { mapApiPublicStoreToStore } from '@/src/utils/consumerMappers';
 import { navigateToCategory } from '@/src/utils/navigation';
+import { useAuthStore } from '@/src/stores/authStore';
+
 import { getTopRatedStores, HOME_STORES_PREVIEW_LIMIT } from '@/src/utils/storeFilters';
 
 export default function ConsumerHomeScreen() {
+  const user = useAuthStore((state) => state.user);
   const { data: categories = [], isLoading } = useCategories();
   const { data: apiStores = [] } = usePublicStores({ limit: 20 });
+  const { data: featuredPromotion } = useFeaturedPromotion();
+  const { data: favoritePromotions = [] } = useFavoritePromotions();
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const categoryChips = useMemo(() => mapRootCategoriesToChips(categories), [categories]);
 
@@ -64,6 +72,12 @@ export default function ConsumerHomeScreen() {
     navigateToCategory(selectedCategoryId, 'home');
   }
 
+  function handlePromotionPress(promotion: ApiConsumerPromotion) {
+    router.push(`/(consumer)/promotions/${promotion.id}?origin=home` as never);
+  }
+
+  const greetingName = user?.name?.split(' ')[0] ?? 'visitante';
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
@@ -73,7 +87,7 @@ export default function ConsumerHomeScreen() {
         >
           <View style={styles.header}>
             <View style={styles.greeting}>
-              <Text style={styles.title}>Olá, Maria 👋</Text>
+              <Text style={styles.title}>Olá, {greetingName} 👋</Text>
               <Text style={styles.subtitle}>Encontre lojas e produtos perto de você</Text>
             </View>
             <Pressable
@@ -87,20 +101,11 @@ export default function ConsumerHomeScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.promoBanner}>
-            <Text style={styles.promoEyebrow}>🔥 PROMOÇÃO DO DIA</Text>
-            <Text style={styles.promoTitle}>A oferta mais quente do bairro</Text>
-            <Text style={styles.promoStore}>Padaria São José</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                router.push('/(consumer)/promotions/cafe-da-manha-especial?origin=home' as never)
-              }
-              style={styles.offerButton}
-            >
-              <Text style={styles.offerButtonText}>Ver oferta</Text>
-            </Pressable>
-          </View>
+          <PromotionBanner
+            dailyPromotion={featuredPromotion}
+            favoritePromotions={favoritePromotions}
+            onPress={handlePromotionPress}
+          />
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Categorias</Text>
@@ -220,52 +225,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: colors.primary,
-  },
-  promoBanner: {
-    height: 123,
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radius.lg - 4,
-    backgroundColor: colors.primary,
-  },
-  promoEyebrow: {
-    color: colors.primarySoft,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-  },
-  promoTitle: {
-    color: colors.white,
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-  },
-  promoStore: {
-    color: colors.white,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '700',
-  },
-  offerButton: {
-    minWidth: 104,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.sm,
-    backgroundColor: colors.white,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
-    elevation: 4,
-  },
-  offerButtonText: {
-    color: colors.primary,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '700',
   },
   section: {
     gap: spacing.sm,

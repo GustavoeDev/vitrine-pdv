@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from marketing.models import ProductDiscount
+from marketing.models import ProductDiscount, Promotion
+
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = ("title", "store", "status", "start_date", "end_date")
+    list_filter = ("status",)
 
 
 @admin.register(ProductDiscount)

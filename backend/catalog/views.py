@@ -25,16 +25,30 @@ from stores.permissions import IsStoreOwner
 from stores.services.store_access import get_user_store
 
 
+def _public_product_queryset():
+    active_discounts = ProductDiscount.objects.filter(is_active=True).order_by("-start_date")
+
+    return Product.objects.prefetch_related(
+        Prefetch("discounts", queryset=active_discounts, to_attr="active_discounts"),
+    )
+
+
 class ProductDetailView(RetrieveAPIView):
     permission_classes = [AllowAny]
     serializer_class = ProductDetailSerializer
-    queryset = Product.objects.filter(
-        is_active=True,
-        store__status=StoreStatus.ACTIVE,
-    ).select_related(
-        "store",
-        "store__category",
-    )
+
+    def get_queryset(self):
+        return (
+            _public_product_queryset()
+            .filter(
+                is_active=True,
+                store__status=StoreStatus.ACTIVE,
+            )
+            .select_related(
+                "store",
+                "store__category",
+            )
+        )
 
 
 class StoreProductListView(ListAPIView):
@@ -44,7 +58,8 @@ class StoreProductListView(ListAPIView):
 
     def get_queryset(self):
         return (
-            Product.objects.filter(
+            _public_product_queryset()
+            .filter(
                 is_active=True,
                 store_id=self.kwargs["store_id"],
                 store__status=StoreStatus.ACTIVE,

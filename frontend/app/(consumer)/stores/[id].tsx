@@ -24,6 +24,8 @@ import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
 import { promotionOfTheDay, storeReviews } from '@/src/mocks/consumer';
 import { usePublicStore, useStoreProducts, discoveryKeys } from '@/src/queries/useDiscovery';
+import { useIsStoreFavorited, useToggleFavorite } from '@/src/queries/usePromotions';
+import { useAuthStore } from '@/src/stores/authStore';
 import type { ApiPublicStore } from '@/src/services/consumerStores';
 import { Store } from '@/src/types';
 import {
@@ -119,6 +121,9 @@ export default function StoreProfileScreen() {
   const activeTab = resolveTab(tab);
   const activeBottomNav = resolveBottomNavKey(origin);
   const { showAlert } = useAppModal();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const isFavorited = useIsStoreFavorited(storeId);
+  const toggleFavorite = useToggleFavorite();
   const { data: apiStore, isLoading: isLoadingStore, isError: isStoreError } = usePublicStore(storeId);
   const {
     data: apiProducts = [],
@@ -175,6 +180,32 @@ export default function StoreProfileScreen() {
       await showAlert({
         title: 'WhatsApp indisponível',
         subtitle: 'Não foi possível abrir o WhatsApp neste dispositivo.',
+      });
+    }
+  };
+
+  const handleFavoritePress = async () => {
+    if (!storeId) {
+      return;
+    }
+
+    if (!accessToken) {
+      await showAlert({
+        title: 'Entre na sua conta',
+        subtitle: 'Faça login para favoritar lojas e receber ofertas personalizadas.',
+      });
+      return;
+    }
+
+    try {
+      await toggleFavorite.mutateAsync({
+        storeId,
+        isFavorited,
+      });
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível atualizar seus favoritos.',
       });
     }
   };
@@ -243,7 +274,10 @@ export default function StoreProfileScreen() {
               onPress={() => void handleWhatsAppPress()}
               primary
             />
-            <ActionButton icon="heart-outline" />
+            <ActionButton
+              icon={isFavorited ? 'heart' : 'heart-outline'}
+              onPress={() => void handleFavoritePress()}
+            />
           </View>
 
           <View style={styles.tabs}>

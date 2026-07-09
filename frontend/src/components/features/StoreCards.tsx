@@ -16,6 +16,8 @@ interface FeaturedStoreCardProps {
 
 interface FavoriteStoreCardProps {
   store: Store;
+  hasActivePromotion?: boolean;
+  onPress?: () => void;
 }
 
 export function NearbyStoreCard({ onPress, store }: NearbyStoreCardProps) {
@@ -48,9 +50,13 @@ export function FeaturedStoreCard({ onPress, store }: FeaturedStoreCardProps) {
   );
 }
 
-export function FavoriteStoreCard({ store }: FavoriteStoreCardProps) {
+export function FavoriteStoreCard({
+  store,
+  hasActivePromotion = false,
+  onPress,
+}: FavoriteStoreCardProps) {
   return (
-    <View style={styles.favoriteCard}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.favoriteCard}>
       <Image source={{ uri: store.coverImageUrl }} style={styles.favoriteImage} />
       <View style={styles.favoriteInfo}>
         <View style={styles.favoriteTopRow}>
@@ -73,11 +79,13 @@ export function FavoriteStoreCard({ store }: FavoriteStoreCardProps) {
           <Text style={styles.featuredDistance}>{store.distance}</Text>
           <Text style={styles.rating}>★ {store.rating.toFixed(1)}</Text>
         </View>
-        <View style={styles.promoBadge}>
-          <Text style={styles.promoBadgeText}>Promoção ativa</Text>
-        </View>
+        {hasActivePromotion ? (
+          <View style={styles.promoBadge}>
+            <Text style={styles.promoBadgeText}>Promoção ativa</Text>
+          </View>
+        ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 

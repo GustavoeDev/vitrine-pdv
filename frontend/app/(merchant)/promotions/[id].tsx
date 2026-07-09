@@ -1,49 +1,68 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
 import { DateRangeField } from '@/src/components/ui/DateRangeField';
 import { ImagePickerSheet } from '@/src/components/ui/ImagePickerSheet';
-import { SelectField } from '@/src/components/ui/SelectField';
 import { colors, radius, spacing, typography } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useMerchant } from '@/src/contexts/MerchantContext';
-import { MerchantPromotionType } from '@/src/types/merchant';
 import {
-  createDefaultPromotionEndDate,
   endOfDay,
   isEndDateBeforeStartDate,
   startOfDay,
 } from '@/src/utils/dates';
+import { resolvePromotionDiscountTotal } from '@/src/utils/merchantPromotions';
+import { normalizeRouteParam } from '@/src/utils/routeParams';
 import { launchCamera, launchGallery } from '@/src/utils/imagePicker';
 
-function createInitialStartDate(): Date {
-  return startOfDay(new Date());
-}
-
-export default function MerchantPromotionCreateScreen() {
-  const { products, addPromotion, isSavingPromotion } = useMerchant();
+export default function MerchantPromotionEditScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const promotionId = normalizeRouteParam(id);
+  const { promotions, isLoadingPromotions, isSavingPromotion, updatePromotion } = useMerchant();
   const { showAlert } = useAppModal();
-  const [type, setType] = useState<MerchantPromotionType>('daily');
+
+  const promotion = useMemo(
+    () => promotions.find((item) => item.id === promotionId),
+    [promotionId, promotions],
+  );
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState<Date>(createInitialStartDate);
-  const [endDate, setEndDate] = useState<Date>(() =>
-    createDefaultPromotionEndDate(createInitialStartDate()),
-  );
-  const [productId, setProductId] = useState('');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [discountTotal, setDiscountTotal] = useState('');
-  const [notifyFavorites, setNotifyFavorites] = useState(true);
+  const [notifyFavorites, setNotifyFavorites] = useState(false);
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-  const productOptions = useMemo(
-    () => products.map((product) => ({ id: product.id, label: product.name })),
-    [products],
-  );
+  useEffect(() => {
+    if (!promotion) {
+      return;
+    }
+
+    setTitle(promotion.title);
+    setDescription(promotion.description ?? '');
+    setStartDate(startOfDay(new Date(promotion.start_date)));
+    setEndDate(startOfDay(new Date(promotion.end_date)));
+    setDiscountTotal(resolvePromotionDiscountTotal(promotion));
+    setNotifyFavorites(promotion.notify_favorites);
+    setBannerUri(promotion.banner_url ?? null);
+  }, [promotion]);
 
   const handleSelectBanner = async (source: 'camera' | 'gallery') => {
     const uri =
@@ -59,11 +78,7 @@ export default function MerchantPromotionCreateScreen() {
   };
 
   const handleSave = async () => {
-    if (!startDate || !endDate) {
-      await showAlert({
-        title: 'Campos obrigatórios',
-        subtitle: 'Informe a data inicial e final da promoção.',
-      });
+    if (!promotion || !startDate || !endDate) {
       return;
     }
 
@@ -75,43 +90,72 @@ export default function MerchantPromotionCreateScreen() {
       return;
     }
 
-    if (type === 'daily' && (!title || !description || !bannerUri)) {
+    if (promotion.promotion_type === 'daily' && (!title.trim() || !description.trim() || !bannerUri)) {
       await showAlert({
         title: 'Campos obrigatórios',
-        subtitle: 'Preencha título, descrição e banner da promoção do dia.',
+        subtitle: 'Preencha título, descrição e banner da promoção.',
       });
       return;
     }
 
-    if (type === 'product-discount' && (!productId || !discountTotal)) {
+    if (promotion.promotion_type === 'product-discount' && !discountTotal) {
       await showAlert({
         title: 'Campos obrigatórios',
-        subtitle: 'Selecione um produto e o total de desconto.',
+        subtitle: 'Informe o valor do desconto.',
       });
       return;
     }
 
     try {
-      await addPromotion({
-        promotion_type: type,
-        title: type === 'daily' ? title : products.find((product) => product.id === productId)?.name ?? 'Promocao',
-        description: type === 'daily' ? description : 'Desconto aplicado em produto do catalogo.',
+      await updatePromotion(promotion.id, {
+        promotion_type: promotion.promotion_type,
+        ...(promotion.promotion_type === 'daily'
+          ? {
+              title: title.trim(),
+              description: description.trim(),
+              notify_favorites: notifyFavorites,
+              banner_url: bannerUri,
+            }
+          : {
+              discount_total: Number(discountTotal.replace(',', '.')),
+            }),
         start_date: startOfDay(startDate).toISOString(),
         end_date: endOfDay(endDate).toISOString(),
-        notify_favorites: notifyFavorites,
-        product_id: type === 'product-discount' ? productId : undefined,
-        discount_total: discountTotal ? Number(discountTotal.replace(',', '.')) : undefined,
-        banner_url: type === 'daily' ? bannerUri ?? undefined : undefined,
       });
 
-      router.replace('/(merchant)/promotions');
+      router.back();
     } catch {
       await showAlert({
         title: 'Erro',
-        subtitle: 'Não foi possível publicar a promoção.',
+        subtitle: 'Não foi possível salvar as alterações.',
       });
     }
   };
+
+  if (isLoadingPromotions) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!promotion) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Promoção não encontrada</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backLink}>
+            <Text style={styles.backLinkText}>Voltar</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isDaily = promotion.promotion_type === 'daily';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -121,43 +165,20 @@ export default function MerchantPromotionCreateScreen() {
             <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
               <Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
             </Pressable>
-            <Text style={styles.title}>Criar Promocao</Text>
-          </View>
-
-          <View style={styles.typeRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setType('daily')}
-              style={[styles.typeCard, type === 'daily' && styles.typeCardActive]}
-            >
-              <Text style={[styles.typeTitle, type === 'daily' && styles.typeTitleActive]}>Promocao do Dia</Text>
-              <Text style={[styles.typeDescription, type === 'daily' && styles.typeDescriptionActive]}>
-                Destaque na home e notificacao para favoritos
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setType('product-discount')}
-              style={[styles.typeCard, type === 'product-discount' && styles.typeCardActive]}
-            >
-              <Text style={[styles.typeTitle, type === 'product-discount' && styles.typeTitleActive]}>
-                Desconto em Produto
-              </Text>
-              <Text style={[styles.typeDescription, type === 'product-discount' && styles.typeDescriptionActive]}>
-                Aplique desconto em um produto do catalogo
-              </Text>
-            </Pressable>
+            <Text style={styles.title}>Editar Promoção</Text>
           </View>
 
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>
-              {type === 'daily' ? 'Promocao do Dia' : 'Desconto em Produto'}
-            </Text>
+            <View style={styles.typePill}>
+              <Text style={styles.typePillText}>
+                {isDaily ? 'Promoção do Dia' : 'Desconto em Produto'}
+              </Text>
+            </View>
 
-            {type === 'daily' ? (
+            {isDaily ? (
               <>
                 <Pressable
-                  accessibilityLabel="Adicionar banner da promoção"
+                  accessibilityLabel="Alterar banner da promoção"
                   accessibilityRole="button"
                   onPress={() => setIsPickerOpen(true)}
                   style={styles.bannerField}
@@ -172,17 +193,17 @@ export default function MerchantPromotionCreateScreen() {
                   )}
                 </Pressable>
                 <View style={styles.field}>
-                  <Text style={styles.label}>Titulo da promocao</Text>
+                  <Text style={styles.label}>Título da promoção</Text>
                   <TextInput
                     onChangeText={setTitle}
-                    placeholder="Ex.: Cafe da manha especial"
+                    placeholder="Ex.: Café da manhã especial"
                     placeholderTextColor={colors.textMuted}
                     style={styles.input}
                     value={title}
                   />
                 </View>
                 <View style={styles.field}>
-                  <Text style={styles.label}>Descricao</Text>
+                  <Text style={styles.label}>Descrição</Text>
                   <TextInput
                     multiline
                     onChangeText={setDescription}
@@ -195,19 +216,16 @@ export default function MerchantPromotionCreateScreen() {
               </>
             ) : (
               <>
-                <SelectField
-                  label="Produto"
-                  onSelect={(id) => setProductId(id)}
-                  options={productOptions}
-                  placeholder="Selecione um produto"
-                  value={productId}
-                />
+                <View style={styles.readonlyField}>
+                  <Text style={styles.label}>Produto</Text>
+                  <Text style={styles.readonlyValue}>{promotion.title}</Text>
+                </View>
                 <View style={styles.field}>
-                  <Text style={styles.label}>Total de Desconto</Text>
+                  <Text style={styles.label}>Total de desconto (R$)</Text>
                   <TextInput
                     keyboardType="decimal-pad"
                     onChangeText={setDiscountTotal}
-                    placeholder="Informe o preco total de desconto"
+                    placeholder="Informe o valor do desconto"
                     placeholderTextColor={colors.textMuted}
                     style={styles.input}
                     value={discountTotal}
@@ -223,14 +241,14 @@ export default function MerchantPromotionCreateScreen() {
               onChangeStart={(date) => {
                 setStartDate(date);
 
-                if (isEndDateBeforeStartDate(date, endDate)) {
+                if (endDate && isEndDateBeforeStartDate(date, endDate)) {
                   setEndDate(date);
                 }
               }}
               startDate={startDate}
             />
 
-            {type === 'daily' ? (
+            {isDaily ? (
               <View style={styles.toggleRow}>
                 <Text style={styles.toggleText}>Clientes que favoritaram recebem alerta</Text>
                 <Switch
@@ -250,7 +268,7 @@ export default function MerchantPromotionCreateScreen() {
               style={styles.saveButton}
             >
               <Text style={styles.saveButtonText}>
-                {isSavingPromotion ? 'Publicando...' : 'Publicar Promocao'}
+                {isSavingPromotion ? 'Salvando...' : 'Salvar alterações'}
               </Text>
             </Pressable>
           </View>
@@ -274,16 +292,40 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   screen: { flex: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 10 },
   scrollContent: { paddingTop: 24, paddingBottom: spacing.lg, gap: spacing.md },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  errorTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  backLink: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  backLinkText: {
+    color: colors.primary,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  backButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.neutralSoft },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutralSoft,
+  },
   title: { color: colors.textPrimary, fontSize: 20, lineHeight: 26, fontWeight: '700' },
-  typeRow: { flexDirection: 'row', gap: 10 },
-  typeCard: { flex: 1, gap: 6, padding: 12, borderWidth: 1, borderColor: colors.primary, borderRadius: 16 },
-  typeCardActive: { backgroundColor: colors.primary },
-  typeTitle: { color: colors.textPrimary, fontSize: 14, lineHeight: 19, fontWeight: '700' },
-  typeTitleActive: { color: colors.white },
-  typeDescription: { color: colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: '400' },
-  typeDescriptionActive: { color: colors.white },
   formCard: {
     gap: spacing.sm,
     padding: 12,
@@ -295,7 +337,19 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  formTitle: { color: colors.textPrimary, fontSize: 16, lineHeight: 22, fontWeight: '700' },
+  typePill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.primarySoft,
+  },
+  typePillText: {
+    color: colors.primary,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
   bannerField: {
     width: '100%',
     height: 140,
@@ -322,11 +376,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   field: { gap: 6 },
+  readonlyField: {
+    gap: 6,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.neutralSoft,
+  },
+  readonlyValue: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
+  },
   label: { ...typography.label, color: colors.textPrimary },
-  input: { height: 48, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: spacing.md, color: colors.textPrimary, fontSize: 14, lineHeight: 19, fontWeight: '400' },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    color: colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '400',
+  },
   textArea: { height: 60, paddingTop: 12, textAlignVertical: 'top' },
-  toggleRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm },
-  toggleText: { flex: 1, color: colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: '600' },
-  saveButton: { height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm, backgroundColor: colors.primary },
-  saveButtonText: { color: colors.white, fontSize: 16, lineHeight: 22, fontWeight: '700' },
+  toggleRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+  },
+  toggleText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  saveButton: {
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary,
+  },
+  saveButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
 });
