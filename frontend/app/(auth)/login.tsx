@@ -44,7 +44,7 @@ export default function LoginScreen() {
             placeholder="Digite sua senha"
             textContentType="password"
           />
-          <AuthButton label="Entrar" />
+          <AuthButton label="Entrar" onPress={() => router.replace('/(consumer)' as never)} />
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
