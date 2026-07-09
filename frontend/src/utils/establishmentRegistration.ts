@@ -4,6 +4,8 @@ import {
   WEEKDAY_SHORT,
 } from '@/src/constants/establishment';
 import {
+  CreateBusinessHourInput,
+  CreateStoreInput,
   DaySchedule,
   EstablishmentRegistrationData,
   StepCompletion,
@@ -248,4 +250,41 @@ export function getEstablishmentInitial(name: string): string {
 
 export function getWeekdayLabel(day: Weekday): string {
   return WEEKDAY_LABELS[day];
+}
+
+function toBusinessWeekday(day: Weekday): CreateBusinessHourInput['weekday'] {
+  return day.toUpperCase() as CreateBusinessHourInput['weekday'];
+}
+
+export function toCreateStoreInput(data: EstablishmentRegistrationData): CreateStoreInput {
+  const business_hours = data.schedule.flatMap((day) =>
+    day.enabled
+      ? day.intervals
+          .filter((interval) => isIntervalComplete(interval.open, interval.close))
+          .map((interval) => ({
+            weekday: toBusinessWeekday(day.day),
+            opens_at: interval.open,
+            closes_at: interval.close,
+          }))
+      : [],
+  );
+
+  return {
+    category_id: data.categoryId,
+    name: data.name.trim(),
+    description: null,
+    phone_number: data.phone.trim(),
+    cover_photo_url: data.coverImageUri,
+    logo_url: data.logoImageUri,
+    address: {
+      street: data.street.trim(),
+      number: data.number.trim(),
+      complement: data.complement.trim(),
+      district: data.neighborhood.trim(),
+      city: data.city.trim(),
+      state: data.state.trim().toUpperCase(),
+      zipcode: data.cep.replace(/\D/g, ''),
+    },
+    business_hours,
+  };
 }

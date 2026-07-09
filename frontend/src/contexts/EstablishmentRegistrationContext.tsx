@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 
 import { createDefaultSchedule } from '@/src/constants/establishment';
 import {
+  CreateStoreInput,
   DaySchedule,
   EstablishmentRegistrationData,
   StepCompletion,
@@ -9,8 +10,8 @@ import {
 import {
   areAllStepsComplete,
   getStepCompletion,
+  toCreateStoreInput,
 } from '@/src/utils/establishmentRegistration';
-
 const initialData: EstablishmentRegistrationData = {
   coverImageUri: null,
   logoImageUri: null,
@@ -34,6 +35,7 @@ interface EstablishmentRegistrationContextValue {
   allStepsComplete: boolean;
   updateData: (patch: Partial<EstablishmentRegistrationData>) => void;
   updateSchedule: (schedule: DaySchedule[]) => void;
+  buildStorePayload: () => CreateStoreInput;
   resetRegistration: () => void;
 }
 
@@ -72,6 +74,7 @@ export function EstablishmentRegistrationProvider({
       allStepsComplete,
       updateData,
       updateSchedule,
+      buildStorePayload: () => toCreateStoreInput(data),
       resetRegistration,
     }),
     [allStepsComplete, data, resetRegistration, stepCompletion, updateData, updateSchedule],

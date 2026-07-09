@@ -18,6 +18,7 @@ interface ProfileRowProps {
   selected?: boolean;
   showChevron?: boolean;
   showSwitch?: boolean;
+  onPress?: () => void;
 }
 
 function ProfileRow({
@@ -28,9 +29,10 @@ function ProfileRow({
   selected = false,
   showChevron = false,
   showSwitch = false,
+  onPress,
 }: ProfileRowProps) {
   return (
-    <Pressable accessibilityRole="button" style={styles.row}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
       <View style={styles.rowLeft}>
         <View style={[styles.iconWrap, mutedIcon && styles.mutedIconWrap]}>
           <Ionicons
@@ -101,6 +103,7 @@ export default function ConsumerProfileScreen() {
               <ProfileRow
                 icon="storefront-outline"
                 label="Padaria São José"
+                onPress={() => router.push('/(merchant)' as never)}
                 subtitle="Alimentação"
               />
               <View style={styles.divider} />

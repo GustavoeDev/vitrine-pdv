@@ -39,3 +39,30 @@ export interface EstablishmentRegistrationData {
 }
 
 export type StepCompletion = Record<'business' | 'location' | 'hours', boolean>;
+
+export interface CreateStoreAddressInput {
+  street: string;
+  number: string;
+  complement: string;
+  district: string;
+  city: string;
+  state: string;
+  zipcode: string;
+}
+
+export interface CreateBusinessHourInput {
+  weekday: Uppercase<Weekday>;
+  opens_at: string;
+  closes_at: string;
+}
+
+export interface CreateStoreInput {
+  category_id: string;
+  name: string;
+  description?: string | null;
+  phone_number: string;
+  cover_photo_url?: string | null;
+  logo_url?: string | null;
+  address: CreateStoreAddressInput;
+  business_hours: CreateBusinessHourInput[];
+}
