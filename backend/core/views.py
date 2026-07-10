@@ -1,4 +1,4 @@
-from django.conf import settings
+from django.core.files.storage import default_storage
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -33,7 +33,7 @@ class MediaUploadView(APIView):
 
         folder = request.data.get("folder", "avatars")
         saved_path = save_media_upload(uploaded_file=uploaded_file, folder=folder)
-        file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{saved_path}")
+        file_url = default_storage.url(saved_path)
 
         return Response({"url": file_url}, status=status.HTTP_201_CREATED)
 
