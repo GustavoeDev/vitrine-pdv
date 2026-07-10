@@ -4,17 +4,12 @@ import { colors } from '@/src/constants/tokens';
 import { Review } from '@/src/types';
 
 interface StoreReviewsSummaryProps {
-  reviews: Review[];
+  averageRating?: number | null;
+  reviews?: Review[];
+  reviewsCount?: number;
 }
 
-function formatAverageRating(reviews: Review[]): string {
-  if (reviews.length === 0) {
-    return '0,0';
-  }
-
-  const average =
-    reviews.reduce((total, review) => total + review.rating, 0) / reviews.length;
-
+function formatAverageRating(average: number): string {
   return average.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
@@ -23,18 +18,41 @@ function formatStars(rating: number): string {
   return '★'.repeat(Math.min(5, Math.max(0, rounded)));
 }
 
-export function StoreReviewsSummary({ reviews }: StoreReviewsSummaryProps) {
-  const average =
-    reviews.length === 0
-      ? 0
-      : reviews.reduce((total, review) => total + review.rating, 0) / reviews.length;
+function resolveSummaryStats({
+  averageRating,
+  reviews = [],
+  reviewsCount,
+}: StoreReviewsSummaryProps) {
+  if (averageRating != null && reviewsCount != null) {
+    return {
+      average: averageRating,
+      count: reviewsCount,
+    };
+  }
+
+  if (reviews.length === 0) {
+    return { average: 0, count: 0 };
+  }
+
+  return {
+    average: reviews.reduce((total, review) => total + review.rating, 0) / reviews.length,
+    count: reviews.length,
+  };
+}
+
+export function StoreReviewsSummary({
+  averageRating,
+  reviews = [],
+  reviewsCount,
+}: StoreReviewsSummaryProps) {
+  const { average, count } = resolveSummaryStats({ averageRating, reviews, reviewsCount });
 
   return (
     <View style={styles.row}>
-      <Text style={styles.score}>{formatAverageRating(reviews)}</Text>
+      <Text style={styles.score}>{formatAverageRating(average)}</Text>
       <Text style={styles.stars}>{formatStars(average)}</Text>
       <Text style={styles.count}>
-        {reviews.length} {reviews.length === 1 ? 'avaliação' : 'avaliações'}
+        {count} {count === 1 ? 'avaliação' : 'avaliações'}
       </Text>
     </View>
   );

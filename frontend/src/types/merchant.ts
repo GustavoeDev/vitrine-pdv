@@ -82,6 +82,12 @@ export interface MerchantUpdatePromotionInput {
   discount_total?: number;
 }
 
+export interface MerchantStatsTopProduct {
+  id: string;
+  name: string;
+  viewCount: number;
+}
+
 export interface MerchantStatsSnapshot {
   views: number;
   viewsDelta: string;
@@ -91,4 +97,6 @@ export interface MerchantStatsSnapshot {
   totalProducts: number;
   averageRating: number;
   ratingsCount: number;
+  topProducts: MerchantStatsTopProduct[];
+  isLoading: boolean;
 }

@@ -23,9 +23,12 @@ from stores.serializers import (
     UpdateMerchantStoreSerializer,
 )
 from stores.services.geocoding import geocode_address
+from stores.services.merchant_stats import RANGE_DAYS, get_merchant_stats
 from stores.services.merchant_store import update_merchant_store
+from stores.services.store_access import get_user_store
 from stores.services.store_registration import register_store
 from stores.services.store_review import approve_store, reject_store
+from stores.serializers_merchant_stats import MerchantStatsSerializer
 
 
 class CategoryQuerySetMixin:
@@ -101,6 +104,23 @@ class MerchantStoreDetailView(APIView):
         return Response(StoreDetailSerializer(store).data)
 
 
+class MerchantStatsView(APIView):
+    permission_classes = [IsStoreOwner]
+
+    def get(self, request: Request) -> Response:
+        range_key = request.query_params.get("range", "30d")
+        if range_key not in RANGE_DAYS:
+            return Response(
+                {"range": "Período inválido. Use 7d, 30d ou 3m."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        store = get_user_store(user=request.user, store_id=request.query_params.get("store_id"))
+        stats = get_merchant_stats(store=store, range_key=range_key)
+        serializer = MerchantStatsSerializer(stats)
+        return Response(serializer.data)
+
+
 def _admin_store_queryset():
     return (
         Store.objects.select_related("category", "address", "user")
@@ -154,10 +174,16 @@ class AdminStoreApproveView(APIView):
 
 
 def _public_store_queryset():
+    from django.db.models import Avg, Count
+
     return (
         Store.objects.filter(status=StoreStatus.ACTIVE)
         .select_related("category", "address")
         .prefetch_related("business_hours")
+        .annotate(
+            average_rating=Avg("reviews__rating"),
+            reviews_count=Count("reviews", distinct=True),
+        )
         .order_by("-created_at")
     )
 

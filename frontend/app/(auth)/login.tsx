@@ -80,14 +80,6 @@ export default function LoginScreen() {
             label={isAuthenticating ? 'Entrando...' : 'Entrar'}
             onPress={handleLogin}
           />
-          <Pressable
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => undefined}
-            style={styles.forgotButton}
-          >
-            <Text style={styles.forgotText}>Esqueci minha senha</Text>
-          </Pressable>
           <AuthDivider />
           <AuthButton
             disabled={isAuthenticating}

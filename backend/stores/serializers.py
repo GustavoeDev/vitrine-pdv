@@ -187,6 +187,13 @@ class PublicStoreListSerializer(StoreSummarySerializer):
         allow_null=True,
     )
     distance_km = serializers.SerializerMethodField()
+    average_rating = serializers.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
+    reviews_count = serializers.IntegerField(read_only=True)
 
     class Meta(StoreSummarySerializer.Meta):
         fields = StoreSummarySerializer.Meta.fields + (
@@ -194,6 +201,8 @@ class PublicStoreListSerializer(StoreSummarySerializer):
             "latitude",
             "longitude",
             "distance_km",
+            "average_rating",
+            "reviews_count",
         )
 
     def get_address_summary(self, store: Store) -> str:
@@ -232,6 +241,13 @@ class StoreDetailSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     address = AddressReadSerializer(read_only=True)
     business_hours = BusinessHourReadSerializer(many=True, read_only=True)
+    average_rating = serializers.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
+    reviews_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Store
@@ -248,6 +264,8 @@ class StoreDetailSerializer(serializers.ModelSerializer):
             "category_name",
             "address",
             "business_hours",
+            "average_rating",
+            "reviews_count",
             "created_at",
         )
 

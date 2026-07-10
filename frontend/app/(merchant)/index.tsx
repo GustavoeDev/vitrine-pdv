@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
@@ -53,16 +53,39 @@ export default function MerchantDashboardScreen() {
               <View style={styles.statIconWrap}>
                 <Ionicons color={colors.primary} name="eye-outline" size={20} />
               </View>
-              <Text style={styles.statValue}>{stats.views}</Text>
+              {stats.isLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.statValue}>{stats.views}</Text>
+              )}
               <Text style={styles.statLabel}>Visualizacoes</Text>
             </View>
             <View style={styles.statCard}>
               <View style={styles.statIconWrap}>
                 <Ionicons color={colors.primary} name="heart-outline" size={20} />
               </View>
-              <Text style={styles.statValue}>{stats.favorites}</Text>
+              {stats.isLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.statValue}>{stats.favorites}</Text>
+              )}
               <Text style={styles.statLabel}>Favoritos</Text>
             </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/(merchant)/reviews')}
+              style={styles.statCard}
+            >
+              <View style={styles.statIconWrap}>
+                <Ionicons color={colors.primary} name="star-outline" size={20} />
+              </View>
+              {stats.isLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.statValue}>{stats.averageRating.toFixed(1)}</Text>
+              )}
+              <Text style={styles.statLabel}>{stats.ratingsCount} avaliacoes</Text>
+            </Pressable>
           </View>
 
           <View style={styles.section}>
@@ -141,6 +164,7 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
     flex: 1,
+    minWidth: 0,
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: 16,
@@ -154,8 +178,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.white,
   },
-  statValue: { color: colors.primary, fontSize: 28, lineHeight: 34, fontWeight: '700' },
-  statLabel: { color: colors.textSecondary, fontSize: 15, lineHeight: 20, fontWeight: '400' },
+  statValue: { color: colors.primary, fontSize: 24, lineHeight: 30, fontWeight: '700' },
+  statLabel: { color: colors.textSecondary, fontSize: 13, lineHeight: 17, fontWeight: '400' },
   section: { gap: spacing.sm },
   sectionTitle: { color: colors.textPrimary, fontSize: 16, lineHeight: 22, fontWeight: '700' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

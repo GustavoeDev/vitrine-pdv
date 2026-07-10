@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from engagement.models import Favorite
+from engagement.models import Favorite, Review
 from marketing.services.promotion_queries import store_has_active_promotion
 
 
@@ -37,3 +37,42 @@ class FavoriteStoreSerializer(serializers.ModelSerializer):
 
 class CreateFavoriteSerializer(serializers.Serializer):
     store_id = serializers.UUIDField()
+
+
+class StoreReviewSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source="user.name", read_only=True)
+
+    class Meta:
+        model = Review
+        fields = (
+            "id",
+            "author_name",
+            "rating",
+            "comment",
+            "created_at",
+        )
+        read_only_fields = (
+            "id",
+            "author_name",
+            "created_at",
+        )
+
+
+class CreateStoreReviewSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        max_length=500,
+        default="",
+    )
+
+
+class UpdateStoreReviewSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        max_length=500,
+        default="",
+    )

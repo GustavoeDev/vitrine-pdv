@@ -15,6 +15,8 @@ const publicStoreSchema = z.object({
   latitude: z.string().nullable(),
   longitude: z.string().nullable(),
   distance_km: z.number().nullable().optional(),
+  average_rating: z.union([z.number(), z.string()]).nullable().optional(),
+  reviews_count: z.number().optional(),
 });
 
 const storeDetailSchema = z.object({
@@ -49,6 +51,8 @@ const storeDetailSchema = z.object({
     }),
   ),
   created_at: z.string(),
+  average_rating: z.union([z.number(), z.string()]).nullable().optional(),
+  reviews_count: z.number().optional(),
 });
 
 const productDiscountSchema = z.object({

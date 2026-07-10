@@ -7,10 +7,30 @@ import type {
   ApiProductDetail,
   ApiProductSummary,
   ApiPublicStore,
+  ApiStoreDetail,
 } from '@/src/services/consumerStores';
 import { Product, ProductDiscountRecord, Store } from '@/src/types';
 import type { MapStore } from '@/src/types/map';
 import { formatDistanceKm } from '@/src/utils/geo';
+
+function parseAverageRating(value: string | number | null | undefined): number {
+  if (value == null) {
+    return 0;
+  }
+
+  const numeric = typeof value === 'string' ? Number.parseFloat(value) : value;
+  return Number.isNaN(numeric) ? 0 : numeric;
+}
+
+function resolveStoreRatingStats(apiStore: {
+  average_rating?: string | number | null;
+  reviews_count?: number;
+}) {
+  return {
+    rating: parseAverageRating(apiStore.average_rating),
+    reviews: apiStore.reviews_count ?? 0,
+  };
+}
 
 export function formatProductPrice(price: string | number): string {
   const numeric = typeof price === 'string' ? Number.parseFloat(price) : price;
@@ -57,8 +77,20 @@ export function mapApiPublicStoreToStore(apiStore: ApiPublicStore): Store {
     category: apiStore.category_name,
     subcategory: apiStore.subcategory || apiStore.category_name,
     distance,
-    rating: 4.5,
-    reviews: 0,
+    ...resolveStoreRatingStats(apiStore),
+    coverImageUrl: apiStore.cover_photo_url ?? DEFAULT_STORE_COVER,
+    avatarUrl: apiStore.logo_url ?? apiStore.cover_photo_url ?? DEFAULT_STORE_AVATAR,
+  };
+}
+
+export function mapApiStoreDetailToStore(apiStore: ApiStoreDetail): Store {
+  return {
+    id: apiStore.id,
+    name: apiStore.name,
+    category: apiStore.category_name,
+    subcategory: apiStore.subcategory || apiStore.category_name,
+    distance: `${apiStore.address.city}, ${apiStore.address.state}`,
+    ...resolveStoreRatingStats(apiStore),
     coverImageUrl: apiStore.cover_photo_url ?? DEFAULT_STORE_COVER,
     avatarUrl: apiStore.logo_url ?? apiStore.cover_photo_url ?? DEFAULT_STORE_AVATAR,
   };

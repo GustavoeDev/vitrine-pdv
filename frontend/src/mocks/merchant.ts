@@ -2,7 +2,6 @@ import {
   MerchantProduct,
   MerchantProfileData,
   MerchantPromotion,
-  MerchantStatsSnapshot,
 } from '@/src/types/merchant';
 
 const bakeryCover =
@@ -150,35 +149,3 @@ export const merchantPromotionsMock: MerchantPromotion[] = [
   },
 ];
 
-export const merchantStatsByRangeMock: Record<'7d' | '30d' | '3m', MerchantStatsSnapshot> = {
-  '7d': {
-    views: 89,
-    viewsDelta: '+6% vs periodo anterior',
-    favorites: 21,
-    favoritesDelta: '+3% vs periodo anterior',
-    activeProducts: 2,
-    totalProducts: 3,
-    averageRating: 4.8,
-    ratingsCount: 96,
-  },
-  '30d': {
-    views: 124,
-    viewsDelta: '+12% vs periodo anterior',
-    favorites: 38,
-    favoritesDelta: '+8% vs periodo anterior',
-    activeProducts: 2,
-    totalProducts: 3,
-    averageRating: 4.9,
-    ratingsCount: 126,
-  },
-  '3m': {
-    views: 402,
-    viewsDelta: '+18% vs periodo anterior',
-    favorites: 84,
-    favoritesDelta: '+11% vs periodo anterior',
-    activeProducts: 2,
-    totalProducts: 3,
-    averageRating: 4.9,
-    ratingsCount: 284,
-  },
-};

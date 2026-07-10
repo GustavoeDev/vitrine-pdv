@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -18,16 +18,23 @@ import { BusinessHoursDisplay } from '@/src/components/features/BusinessHoursDis
 import { SeeMoreLink } from '@/src/components/features/store/SeeMoreLink';
 import { StoreProfileProductCard } from '@/src/components/features/store/StoreProfileProductCard';
 import { StoreProfileReviewCard } from '@/src/components/features/store/StoreProfileReviewCard';
+import { StoreReviewFormModal } from '@/src/components/features/store/StoreReviewFormModal';
 import { StoreReviewsSummary } from '@/src/components/features/store/StoreReviewsSummary';
 import { DEFAULT_STORE_AVATAR, DEFAULT_STORE_COVER } from '@/src/constants/images';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
-import { promotionOfTheDay, storeReviews } from '@/src/mocks/consumer';
+import { promotionOfTheDay } from '@/src/mocks/consumer';
 import { usePublicStore, useStoreProducts, discoveryKeys } from '@/src/queries/useDiscovery';
 import { useIsStoreFavorited, useToggleFavorite } from '@/src/queries/usePromotions';
+import {
+  useIsStoreOwner,
+  useMyStoreReview,
+  useStoreReviews,
+  useSubmitStoreReview,
+} from '@/src/queries/useReviews';
 import { useAuthStore } from '@/src/stores/authStore';
-import type { ApiPublicStore } from '@/src/services/consumerStores';
-import { Store } from '@/src/types';
+import type { ApiStoreDetail } from '@/src/services/consumerStores';
+import { mapApiStoreReviewToReview } from '@/src/services/reviews';
 import {
   STORE_PRODUCTS_PREVIEW_LIMIT,
   STORE_REVIEWS_PREVIEW_LIMIT,
@@ -35,7 +42,7 @@ import {
 import { buildBusinessHoursRowsFromApi } from '@/src/utils/businessHours';
 import {
   mapApiProductSummaryToProduct,
-  mapApiPublicStoreToStore,
+  mapApiStoreDetailToStore,
 } from '@/src/utils/consumerMappers';
 import { openWhatsApp } from '@/src/utils/whatsapp';
 import { useQueryClient } from '@tanstack/react-query';
@@ -49,22 +56,26 @@ function resolveTab(tab?: string | string[]): StoreTab {
 
 function ActionButton({
   icon,
+  iconColor,
   label,
   onPress,
   primary = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
+  iconColor?: string;
   label?: string;
   onPress?: () => void;
   primary?: boolean;
 }) {
+  const resolvedIconColor = iconColor ?? (primary ? colors.white : colors.textPrimary);
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={[styles.actionButton, primary ? styles.whatsAppButton : styles.secondaryAction]}
     >
-      <Ionicons color={primary ? colors.white : colors.textPrimary} name={icon} size={22} />
+      <Ionicons color={resolvedIconColor} name={icon} size={22} />
       {label ? <Text style={styles.actionLabel}>{label}</Text> : null}
     </Pressable>
   );
@@ -94,24 +105,12 @@ function StorePromotionCard({ origin }: { origin: BottomNavKey }) {
   );
 }
 
-function resolveStoreView(apiStore: ReturnType<typeof usePublicStore>['data']): Store | null {
+function resolveStoreView(apiStore: ApiStoreDetail | undefined): ReturnType<typeof mapApiStoreDetailToStore> | null {
   if (!apiStore) {
     return null;
   }
 
-  return mapApiPublicStoreToStore({
-    id: apiStore.id,
-    name: apiStore.name,
-    status: apiStore.status,
-    category_id: apiStore.category_id,
-    category_name: apiStore.category_name,
-    subcategory: apiStore.subcategory,
-    logo_url: apiStore.logo_url,
-    cover_photo_url: apiStore.cover_photo_url,
-    address_summary: `${apiStore.address.city}, ${apiStore.address.state}`,
-    latitude: apiStore.address.latitude,
-    longitude: apiStore.address.longitude,
-  } satisfies ApiPublicStore);
+  return mapApiStoreDetailToStore(apiStore);
 }
 
 export default function StoreProfileScreen() {
@@ -122,9 +121,18 @@ export default function StoreProfileScreen() {
   const activeBottomNav = resolveBottomNavKey(origin);
   const { showAlert } = useAppModal();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
   const isFavorited = useIsStoreFavorited(storeId);
   const toggleFavorite = useToggleFavorite();
+  const isStoreOwner = useIsStoreOwner(storeId);
+  const submitReview = useSubmitStoreReview(storeId ?? '');
   const { data: apiStore, isLoading: isLoadingStore, isError: isStoreError } = usePublicStore(storeId);
+  const {
+    data: apiReviews = [],
+    isLoading: isLoadingReviews,
+    isError: isReviewsError,
+  } = useStoreReviews(storeId);
+  const { data: myReview } = useMyStoreReview(storeId);
   const {
     data: apiProducts = [],
     isLoading: isLoadingProducts,
@@ -142,16 +150,19 @@ export default function StoreProfileScreen() {
   );
   const store = resolveStoreView(apiStore);
   const products = apiProducts.map(mapApiProductSummaryToProduct);
+  const reviews = useMemo(() => apiReviews.map(mapApiStoreReviewToReview), [apiReviews]);
   const previewProducts = useMemo(
     () => products.slice(0, STORE_PRODUCTS_PREVIEW_LIMIT),
     [products],
   );
   const previewReviews = useMemo(
-    () => storeReviews.slice(0, STORE_REVIEWS_PREVIEW_LIMIT),
-    [],
+    () => reviews.slice(0, STORE_REVIEWS_PREVIEW_LIMIT),
+    [reviews],
   );
   const hasMoreProducts = products.length > STORE_PRODUCTS_PREVIEW_LIMIT;
-  const hasMoreReviews = storeReviews.length > STORE_REVIEWS_PREVIEW_LIMIT;
+  const hasMoreReviews = reviews.length > STORE_REVIEWS_PREVIEW_LIMIT;
+  const averageRating = store?.rating ?? 0;
+  const reviewsCount = store?.reviews ?? 0;
   const addressLine = apiStore
     ? `${apiStore.address.street}, ${apiStore.address.number} • ${apiStore.address.district}`
     : '';
@@ -206,6 +217,46 @@ export default function StoreProfileScreen() {
       await showAlert({
         title: 'Erro',
         subtitle: 'Não foi possível atualizar seus favoritos.',
+      });
+    }
+  };
+
+  const handleReviewPress = async () => {
+    if (!accessToken) {
+      await showAlert({
+        title: 'Entre na sua conta',
+        subtitle: 'Faça login para avaliar lojas.',
+      });
+      return;
+    }
+
+    setIsReviewModalVisible(true);
+  };
+
+  const handleSubmitReview = async (payload: { rating: number; comment: string }) => {
+    if (!storeId) {
+      return;
+    }
+
+    try {
+      await submitReview.mutateAsync({
+        ...payload,
+        isUpdate: Boolean(myReview),
+      });
+      setIsReviewModalVisible(false);
+    } catch (error: unknown) {
+      const detail =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ===
+          'string'
+          ? (error as { response: { data: { detail: string } } }).response.data.detail
+          : 'Não foi possível salvar sua avaliação.';
+
+      await showAlert({
+        title: 'Erro',
+        subtitle: detail,
       });
     }
   };
@@ -276,6 +327,7 @@ export default function StoreProfileScreen() {
             />
             <ActionButton
               icon={isFavorited ? 'heart' : 'heart-outline'}
+              iconColor={isFavorited ? colors.primary : undefined}
               onPress={() => void handleFavoritePress()}
             />
           </View>
@@ -349,25 +401,66 @@ export default function StoreProfileScreen() {
             </View>
           ) : (
             <View style={styles.reviewsSection}>
-              <Text style={styles.reviewsTitle}>Avaliações</Text>
-              <StoreReviewsSummary reviews={storeReviews} />
-              <View style={styles.reviewList}>
-                {previewReviews.map((review) => (
-                  <StoreProfileReviewCard key={review.id} review={review} />
-                ))}
+              <View style={styles.reviewsHeader}>
+                <Text style={styles.reviewsTitle}>Avaliações</Text>
+                {!isStoreOwner ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void handleReviewPress()}
+                    style={styles.reviewActionButton}
+                  >
+                    <Text style={styles.reviewActionText}>
+                      {myReview ? 'Editar avaliação' : 'Avaliar loja'}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
-              {hasMoreReviews ? (
-                <SeeMoreLink
-                  onPress={() =>
-                    router.push(
-                      `/(consumer)/stores/${storeId}/reviews?origin=${activeBottomNav}` as never,
-                    )
-                  }
-                />
-              ) : null}
+              {isLoadingReviews ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : isReviewsError ? (
+                <Text style={styles.emptyProductsText}>
+                  Não foi possível carregar as avaliações desta loja.
+                </Text>
+              ) : reviewsCount === 0 ? (
+                <Text style={styles.emptyProductsText}>
+                  Esta loja ainda não recebeu avaliações.
+                </Text>
+              ) : (
+                <>
+                  <StoreReviewsSummary
+                    averageRating={averageRating}
+                    reviews={reviews}
+                    reviewsCount={reviewsCount}
+                  />
+                  <View style={styles.reviewList}>
+                    {previewReviews.map((review) => (
+                      <StoreProfileReviewCard key={review.id} review={review} />
+                    ))}
+                  </View>
+                  {hasMoreReviews ? (
+                    <SeeMoreLink
+                      onPress={() =>
+                        router.push(
+                          `/(consumer)/stores/${storeId}/reviews?origin=${activeBottomNav}` as never,
+                        )
+                      }
+                    />
+                  ) : null}
+                </>
+              )}
             </View>
           )}
         </ScrollView>
+
+        <StoreReviewFormModal
+          initialComment={myReview?.comment ?? ''}
+          initialRating={myReview?.rating ?? 0}
+          isSaving={submitReview.isPending}
+          isUpdate={Boolean(myReview)}
+          onClose={() => setIsReviewModalVisible(false)}
+          onSubmit={handleSubmitReview}
+          visible={isReviewModalVisible}
+        />
 
         <BottomNav active={activeBottomNav} isRootScreen={false} />
       </View>
@@ -595,10 +688,28 @@ const styles = StyleSheet.create({
   reviewsSection: {
     gap: spacing.sm,
   },
+  reviewsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   reviewsTitle: {
     color: colors.textPrimary,
     fontSize: 15,
     lineHeight: 20,
+    fontWeight: '700',
+  },
+  reviewActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+    backgroundColor: colors.primarySoft,
+  },
+  reviewActionText: {
+    color: colors.primary,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '700',
   },
   reviewList: {

@@ -3,7 +3,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import {
   merchantProfileMock,
-  merchantStatsByRangeMock,
 } from '@/src/mocks/merchant';
 import {
   createMerchantProduct,
@@ -22,6 +21,10 @@ import {
   updateMerchantStore,
   type UpdateMerchantStoreInput,
 } from '@/src/services/merchantStore';
+import {
+  fetchMerchantStats,
+  mapApiMerchantStatsToSnapshot,
+} from '@/src/services/merchantStats';
 import { discoveryKeys } from '@/src/queries/useDiscovery';
 import { promotionKeys } from '@/src/queries/usePromotions';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -48,6 +51,11 @@ export const merchantPromotionKeys = {
 
 export const merchantStoreKeys = {
   detail: (storeId?: string) => ['merchant', 'store', storeId ?? 'default'] as const,
+};
+
+export const merchantStatsKeys = {
+  detail: (storeId?: string, range?: MerchantStatsRange) =>
+    ['merchant', 'stats', storeId ?? 'default', range ?? '30d'] as const,
 };
 
 interface MerchantContextValue {
@@ -360,12 +368,30 @@ export function useMerchant() {
 }
 
 export function useMerchantStats() {
-  const { products, statsRange } = useMerchant();
-  const snapshot = merchantStatsByRangeMock[statsRange];
+  const { activeStoreId, statsRange } = useMerchant();
+
+  const statsQuery = useQuery({
+    queryKey: merchantStatsKeys.detail(activeStoreId, statsRange),
+    queryFn: async () => {
+      const stats = await fetchMerchantStats(statsRange, activeStoreId);
+      return mapApiMerchantStatsToSnapshot(stats);
+    },
+    enabled: Boolean(activeStoreId),
+    staleTime: 0,
+  });
+
+  const snapshot = statsQuery.data;
 
   return {
-    ...snapshot,
-    activeProducts: products.filter((product) => product.is_active).length,
-    totalProducts: products.length,
+    views: snapshot?.views ?? 0,
+    viewsDelta: snapshot?.viewsDelta ?? '',
+    favorites: snapshot?.favorites ?? 0,
+    favoritesDelta: snapshot?.favoritesDelta ?? '',
+    activeProducts: snapshot?.activeProducts ?? 0,
+    totalProducts: snapshot?.totalProducts ?? 0,
+    averageRating: snapshot?.averageRating ?? 0,
+    ratingsCount: snapshot?.ratingsCount ?? 0,
+    topProducts: snapshot?.topProducts ?? [],
+    isLoading: statsQuery.isLoading,
   };
 }
