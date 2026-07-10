@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Prefetch
+from drf_spectacular.utils import extend_schema, extend_schema_view, extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -22,6 +23,9 @@ from accounts.services import register_user
 User = get_user_model()
 
 
+@extend_schema_view(
+    post=extend_schema(request=RegisterSerializer, tags=['Autenticação']),
+)
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -52,6 +56,10 @@ class EmailTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
 
 
+@extend_schema_view(
+    get=extend_schema(responses=UserSerializer, tags=['Usuários']),
+    patch=extend_schema(request=UserUpdateSerializer, responses=UserSerializer, tags=['Usuários']),
+)
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -82,6 +90,7 @@ class MeView(APIView):
         return Response(UserSerializer(user).data)
 
 
+@extend_schema(request=ChangePasswordSerializer, responses={204: None}, tags=['Usuários'])
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 

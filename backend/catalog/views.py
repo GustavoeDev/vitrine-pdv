@@ -1,4 +1,5 @@
 from django.db.models import Count, Prefetch
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import AllowAny
@@ -57,6 +58,9 @@ class StoreProductListView(ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Product.objects.none()
+
         return (
             _public_product_queryset()
             .filter(
@@ -69,6 +73,7 @@ class StoreProductListView(ListAPIView):
         )
 
 
+@extend_schema(responses={201: None}, tags=['Catálogo'])
 class ProductViewCreateView(APIView):
     permission_classes = [AllowAny]
 
@@ -90,6 +95,14 @@ def _merchant_product_queryset():
     )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=MerchantProductSerializer(many=True), tags=['Catálogo']),
+    post=extend_schema(
+        request=CreateMerchantProductSerializer,
+        responses=MerchantProductSerializer,
+        tags=['Catálogo'],
+    ),
+)
 class MerchantProductListCreateView(APIView):
     permission_classes = [IsStoreOwner]
 

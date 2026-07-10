@@ -15,6 +15,8 @@ from pathlib import Path
 
 import environ
 
+from core.openapi import SPECTACULAR_SETTINGS as OPENAPI_SETTINGS
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -51,6 +53,7 @@ INSTALLED_APPS = [
     'channels',
     'corsheaders',
     'django_filters',
+    'drf_spectacular',
     'rest_framework',
     'accounts',
     'stores',
@@ -165,7 +168,10 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+SPECTACULAR_SETTINGS = OPENAPI_SETTINGS
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),

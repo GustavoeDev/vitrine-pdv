@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -39,6 +40,7 @@ from stores.permissions import IsStoreOwner
 from stores.services.store_access import get_user_store
 
 
+@extend_schema(responses=ConsumerPromotionSerializer, tags=['Marketing'])
 class FeaturedPromotionView(APIView):
     permission_classes = [AllowAny]
 
@@ -52,6 +54,7 @@ class FeaturedPromotionView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(responses=ConsumerPromotionSerializer(many=True), tags=['Marketing'])
 class FavoritePromotionsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -62,6 +65,7 @@ class FavoritePromotionsView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(responses=PromotionDetailSerializer, tags=['Marketing'])
 class PromotionDetailView(APIView):
     permission_classes = [AllowAny]
 
@@ -85,6 +89,7 @@ class PromotionDetailView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(responses=ConsumerPromotionSerializer(many=True), tags=['Marketing'])
 class StoreActivePromotionsView(APIView):
     permission_classes = [AllowAny]
 
@@ -109,6 +114,10 @@ class StoreActivePromotionsView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema_view(
+    get=extend_schema(responses=MerchantPromotionSerializer(many=True), tags=['Marketing']),
+    post=extend_schema(tags=['Marketing']),
+)
 class MerchantPromotionListCreateView(APIView):
     permission_classes = [IsStoreOwner]
 
@@ -166,6 +175,7 @@ class MerchantPromotionListCreateView(APIView):
         )
 
 
+@extend_schema(responses=MerchantPromotionSerializer, tags=['Marketing'])
 class MerchantPromotionDetailView(APIView):
     permission_classes = [IsStoreOwner]
 
@@ -202,6 +212,11 @@ class MerchantPromotionDetailView(APIView):
         )
 
 
+@extend_schema(
+    request=UpdatePromotionStatusSerializer,
+    responses=MerchantPromotionSerializer,
+    tags=['Marketing'],
+)
 class MerchantPromotionStatusView(APIView):
     permission_classes = [IsStoreOwner]
 

@@ -1,4 +1,5 @@
 from django.conf import settings
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -10,12 +11,14 @@ from rest_framework.views import APIView
 from core.services.media import save_media_upload
 
 
+@extend_schema(tags=['Sistema'], summary='Health check')
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health_check(request: Request) -> Response:
     return Response({"status": "ok"})
 
 
+@extend_schema(tags=['Sistema'], summary='Upload de mídia')
 class MediaUploadView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]

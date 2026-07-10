@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -48,6 +49,7 @@ class CategoryDetailView(RetrieveAPIView):
     queryset = Category.objects.select_related("parent").prefetch_related("children")
 
 
+@extend_schema(request=CreateStoreSerializer, responses=StoreDetailSerializer, tags=['Lojas'])
 class StoreCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -78,6 +80,14 @@ def _merchant_store_queryset():
     )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=StoreDetailSerializer, tags=['Lojas']),
+    patch=extend_schema(
+        request=UpdateMerchantStoreSerializer,
+        responses=StoreDetailSerializer,
+        tags=['Lojas'],
+    ),
+)
 class MerchantStoreDetailView(APIView):
     permission_classes = [IsStoreOwner]
 
@@ -104,6 +114,14 @@ class MerchantStoreDetailView(APIView):
         return Response(StoreDetailSerializer(store).data)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(name='range', type=str, location=OpenApiParameter.QUERY, description='7d, 30d ou 3m'),
+        OpenApiParameter(name='store_id', type=str, location=OpenApiParameter.QUERY),
+    ],
+    responses=MerchantStatsSerializer,
+    tags=['Lojas'],
+)
 class MerchantStatsView(APIView):
     permission_classes = [IsStoreOwner]
 
@@ -129,6 +147,7 @@ def _admin_store_queryset():
     )
 
 
+@extend_schema(tags=['Administração'])
 class AdminStoreSummaryView(APIView):
     permission_classes = [IsStaffUser]
 
@@ -164,6 +183,7 @@ class AdminStoreDetailView(RetrieveAPIView):
     queryset = _admin_store_queryset()
 
 
+@extend_schema(responses=AdminStoreDetailSerializer, tags=['Administração'])
 class AdminStoreApproveView(APIView):
     permission_classes = [IsStaffUser]
 
@@ -261,6 +281,13 @@ class PublicStoreDetailView(RetrieveAPIView):
     queryset = _public_store_queryset()
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(name='q', type=str, location=OpenApiParameter.QUERY, description='Termo de busca'),
+    ],
+    responses=SearchResultSerializer(many=True),
+    tags=['Lojas'],
+)
 class SearchView(APIView):
     permission_classes = [AllowAny]
 
@@ -310,6 +337,17 @@ class SearchView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(name='street', type=str, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name='number', type=str, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name='neighborhood', type=str, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name='city', type=str, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name='state', type=str, location=OpenApiParameter.QUERY),
+        OpenApiParameter(name='postal_code', type=str, location=OpenApiParameter.QUERY),
+    ],
+    tags=['Lojas'],
+)
 class GeocodeAddressView(APIView):
     permission_classes = [AllowAny]
 
@@ -335,6 +373,11 @@ class GeocodeAddressView(APIView):
         )
 
 
+@extend_schema(
+    request=RejectStoreSerializer,
+    responses=AdminStoreDetailSerializer,
+    tags=['Administração'],
+)
 class AdminStoreRejectView(APIView):
     permission_classes = [IsStaffUser]
 

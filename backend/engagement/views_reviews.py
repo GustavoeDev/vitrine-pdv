@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -21,6 +22,14 @@ def _active_store_or_404(*, store_id):
     )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=StoreReviewSerializer(many=True), tags=['Engajamento']),
+    post=extend_schema(
+        request=CreateStoreReviewSerializer,
+        responses=StoreReviewSerializer,
+        tags=['Engajamento'],
+    ),
+)
 class StoreReviewListCreateView(APIView):
     def get_permissions(self):
         if self.request.method == "GET":
@@ -55,6 +64,14 @@ class StoreReviewListCreateView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=StoreReviewSerializer, tags=['Engajamento']),
+    patch=extend_schema(
+        request=UpdateStoreReviewSerializer,
+        responses=StoreReviewSerializer,
+        tags=['Engajamento'],
+    ),
+)
 class StoreReviewMeView(APIView):
     permission_classes = [IsAuthenticated]
 

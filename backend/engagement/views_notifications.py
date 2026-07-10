@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -13,6 +14,18 @@ from engagement.services.notifications import (
 )
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name='audience',
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description='consumer ou merchant',
+        ),
+    ],
+    responses=NotificationSerializer(many=True),
+    tags=['Engajamento'],
+)
 class NotificationListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -34,6 +47,17 @@ class NotificationListView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name='audience',
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description='consumer ou merchant',
+        ),
+    ],
+    tags=['Engajamento'],
+)
 class NotificationUnreadCountView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -51,6 +75,7 @@ class NotificationUnreadCountView(APIView):
         )
 
 
+@extend_schema(tags=['Engajamento'])
 class NotificationMarkAllReadView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -67,6 +92,7 @@ class NotificationMarkAllReadView(APIView):
         return Response({"updated": updated})
 
 
+@extend_schema(responses=NotificationSerializer, tags=['Engajamento'])
 class NotificationMarkReadView(APIView):
     permission_classes = [IsAuthenticated]
 

@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -14,6 +15,14 @@ from engagement.services.favorites import add_favorite, remove_favorite
 from stores.models import Store
 
 
+@extend_schema_view(
+    get=extend_schema(responses=FavoriteStoreSerializer(many=True), tags=['Engajamento']),
+    post=extend_schema(
+        request=CreateFavoriteSerializer,
+        responses=FavoriteStoreSerializer,
+        tags=['Engajamento'],
+    ),
+)
 class FavoriteListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -41,6 +50,7 @@ class FavoriteListCreateView(APIView):
         )
 
 
+@extend_schema(responses={204: None}, tags=['Engajamento'])
 class FavoriteDestroyView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -49,6 +59,11 @@ class FavoriteDestroyView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    request=UpdateFavoriteNotificationsSerializer,
+    responses=FavoriteStoreSerializer,
+    tags=['Engajamento'],
+)
 class FavoriteNotificationsView(APIView):
     permission_classes = [IsAuthenticated]
 
