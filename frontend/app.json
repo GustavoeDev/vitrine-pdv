@@ -14,11 +14,35 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+    "androidStatusBar": {
+      "backgroundColor": "#F97316",
+      "barStyle": "light-content",
+      "translucent": false
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content"
+    },
     "web": {
       "output": "static"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app precisa acessar suas fotos para definir imagens de perfil e capa.",
+          "cameraPermission": "O app precisa acessar a câmera para tirar fotos de perfil e capa."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O app usa sua localização para mostrar lojas próximas no mapa."
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
