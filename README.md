@@ -43,14 +43,14 @@ O projeto é um **monorepo** com backend REST/ASGI (Django) e aplicativo mobile 
 
 ```
 vitrine-pdv/
-├── backend/          # API Django + WebSocket
-│   ├── accounts/     # Autenticação e usuários
-│   ├── stores/       # Lojas, categorias, busca, admin
-│   ├── catalog/      # Produtos
-│   ├── marketing/    # Promoções
-│   ├── engagement/   # Favoritos, avaliações, notificações
-│   └── core/         # Configuração, mídia, OpenAPI
-└── frontend/         # App Expo (consumer, merchant, admin)
+├── backend/
+│   ├── Dockerfile              # Imagem da API
+│   ├── docker-compose.yml      # Dev: db + api
+│   ├── docker-compose.prod.yml # Produção: api + nginx
+│   ├── nginx/nginx.conf        # Reverse proxy + WebSocket
+│   ├── scripts/entrypoint.sh   # migrate + collectstatic + uvicorn
+│   └── core/settings/          # base, local, production
+└── frontend/
 ```
 
 ---
@@ -66,24 +66,52 @@ vitrine-pdv/
 
 ## Configuração e execução
 
-### 1. Banco de dados
+### Ambientes do backend
+
+O Django usa `DJANGO_ENV` para escolher as configurações:
+
+| `DJANGO_ENV` | Módulo | Uso |
+|--------------|--------|-----|
+| `local` (padrão) | `core.settings.local` | Desenvolvimento |
+| `production` | `core.settings.production` | Deploy (S3, HTTPS, CORS restrito) |
+
+### Opção A — Desenvolvimento local (uvicorn)
 
 ```bash
 cd backend
 cp .env.example .env
 docker compose up -d db
-```
-
-### 2. Backend
-
-```bash
-cd backend
 uv sync
 uv run python manage.py migrate
 uv run uvicorn core.asgi:application --host 0.0.0.0 --port 8000 --reload
 ```
 
-O servidor ficará disponível em `http://0.0.0.0:8000`.
+### Opção B — Desenvolvimento com Docker (API + banco)
+
+```bash
+cd backend
+cp .env.example .env
+docker compose up --build
+```
+
+API em http://localhost:8000
+
+### Opção C — Stack prod-like local (Nginx + API + banco)
+
+Simula produção com Nginx na frente da API (porta 8080):
+
+```bash
+cd backend
+cp .env.production.example .env
+# Ajuste SECRET_KEY se necessário; USE_S3=false mantém mídia em disco
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+```
+
+API em http://localhost:8080 (WebSocket: `ws://localhost:8080/ws/notifications/`)
+
+### Deploy AWS (fase manual)
+
+Na EC2, use apenas [`backend/docker-compose.prod.yml`](backend/docker-compose.prod.yml) com `.env` apontando para o RDS e `USE_S3=true`. Ver [`backend/.env.production.example`](backend/.env.production.example).
 
 #### Documentação da API (Swagger)
 
@@ -154,13 +182,24 @@ uv run pytest
 
 | Variável | Descrição |
 |----------|-----------|
+| `DJANGO_ENV` | `local` ou `production` |
+| `SECRET_KEY` | Chave Django (obrigatória em produção) |
 | `DB_NAME` | Nome do banco PostgreSQL |
 | `DB_USER` | Usuário do banco |
 | `DB_PASSWORD` | Senha do banco |
-| `DB_HOST` | Host do banco (padrão: `localhost`) |
+| `DB_HOST` | Host do banco (`localhost`, `db` no Docker, endpoint RDS na AWS) |
 | `DB_PORT` | Porta do banco (padrão: `5432`) |
 | `DEBUG` | Modo debug (`True` em desenvolvimento) |
-| `ALLOWED_HOSTS` | Hosts permitidos em produção |
+| `ALLOWED_HOSTS` | Hosts permitidos em produção (lista separada por vírgula) |
+| `CORS_ALLOWED_ORIGINS` | Origens CORS em produção |
+| `ENABLE_API_DOCS` | Exibir Swagger/ReDoc (`true` no dev, `false` em produção) |
+| `USE_S3` | `true` para mídia no S3 (produção AWS) |
+| `AWS_STORAGE_BUCKET_NAME` | Bucket S3 de mídia |
+| `AWS_S3_REGION_NAME` | Região AWS (ex.: `sa-east-1`) |
+| `HTTP_PORT` | Porta do Nginx no compose prod (padrão: `8080`) |
+| `DOCKER_IMAGE` | Imagem Docker para deploy (ex.: `usuario/vitrine-pdv-api:latest`) |
+
+Modelo completo de produção: [`backend/.env.production.example`](backend/.env.production.example)
 
 ### Frontend (`frontend/.env`)
 

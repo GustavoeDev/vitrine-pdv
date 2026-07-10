@@ -4,18 +4,36 @@ services:
     container_name: vitrine_pdv_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: vitrine_pdv
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-vitrine_pdv}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  api:
+    build: .
+    container_name: vitrine_pdv_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_ENV: local
+      DB_HOST: db
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+  media_data:
