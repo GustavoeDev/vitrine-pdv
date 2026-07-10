@@ -90,29 +90,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
-CHANNEL_LAYER_BACKEND = env('CHANNEL_LAYER', default='redis')
-
-if CHANNEL_LAYER_BACKEND == 'memory':
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        },
-    }
-else:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [{
-                    'host': env('REDIS_HOST', default='127.0.0.1'),
-                    'port': env.int('REDIS_PORT', default=6379),
-                    # Required for BRPOP with uvicorn/uvloop (default timeout hangs).
-                    'socket_timeout': None,
-                    'socket_connect_timeout': 5,
-                }],
-            },
-        },
-    }
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database
