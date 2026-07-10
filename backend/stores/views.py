@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from catalog.models import Product
 from stores.models import Address, Category, Store, StoreStatus
-from stores.permissions import IsStaffUser
+from stores.permissions import IsStaffUser, IsStoreOwner
 from stores.serializers import (
     AdminStoreDetailSerializer,
     AdminStoreListSerializer,
@@ -20,8 +20,10 @@ from stores.serializers import (
     RejectStoreSerializer,
     SearchResultSerializer,
     StoreDetailSerializer,
+    UpdateMerchantStoreSerializer,
 )
 from stores.services.geocoding import geocode_address
+from stores.services.merchant_store import update_merchant_store
 from stores.services.store_registration import register_store
 from stores.services.store_review import approve_store, reject_store
 
@@ -64,6 +66,39 @@ class StoreCreateView(APIView):
             StoreDetailSerializer(store).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+def _merchant_store_queryset():
+    return (
+        Store.objects.select_related("category", "address", "user")
+        .prefetch_related("business_hours")
+    )
+
+
+class MerchantStoreDetailView(APIView):
+    permission_classes = [IsStoreOwner]
+
+    def get(self, request: Request, pk) -> Response:
+        store = get_object_or_404(
+            _merchant_store_queryset().filter(user=request.user),
+            pk=pk,
+        )
+        return Response(StoreDetailSerializer(store).data)
+
+    def patch(self, request: Request, pk) -> Response:
+        store = get_object_or_404(
+            _merchant_store_queryset().filter(user=request.user),
+            pk=pk,
+        )
+        serializer = UpdateMerchantStoreSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        store = update_merchant_store(
+            store=store,
+            validated_data=serializer.validated_data,
+        )
+        store = _merchant_store_queryset().get(pk=store.pk)
+        return Response(StoreDetailSerializer(store).data)
 
 
 def _admin_store_queryset():

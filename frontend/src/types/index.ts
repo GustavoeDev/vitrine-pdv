@@ -50,8 +50,10 @@ export interface StoreRecord {
   address_id: string;
   name: string;
   description: string | null;
+  subcategory?: string;
   phone_number: string;
   cover_photo_url: string | null;
+  logo_url?: string | null;
   status: StoreStatus;
   reviewed_by: string | null;
   reviewed_at: string | null;

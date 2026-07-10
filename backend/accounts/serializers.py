@@ -31,6 +31,25 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = ("name", "notifications_enabled", "avatar_url")
 
 
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+    new_password_confirm = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_current_password(self, value: str) -> str:
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Senha atual incorreta.")
+        return value
+
+    def validate(self, attrs: dict) -> dict:
+        if attrs["new_password"] != attrs["new_password_confirm"]:
+            raise serializers.ValidationError(
+                {"new_password_confirm": "As senhas não coincidem."}
+            )
+        return attrs
+
+
 class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()

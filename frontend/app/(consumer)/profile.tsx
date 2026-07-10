@@ -1,13 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EditPersonalInfoModal } from '@/src/components/features/profile/EditPersonalInfoModal';
+import { ChangePasswordModal } from '@/src/components/features/profile/ChangePasswordModal';
 import { AvatarPicker } from '@/src/components/ui/AvatarPicker';
 import { BottomNav } from '@/src/components/ui/BottomNav';
+import { LogoutButton } from '@/src/components/ui/LogoutButton';
 import { colors, radius, spacing } from '@/src/constants/tokens';
+import { useAppModal } from '@/src/contexts/AppModalContext';
 import { useAuthStore } from '@/src/stores/authStore';
 import type { ApiStoreSummary } from '@/src/types/store';
 import { getEstablishmentInitial } from '@/src/utils/establishmentRegistration';
@@ -22,7 +26,9 @@ interface ProfileRowProps {
   selected?: boolean;
   showChevron?: boolean;
   showSwitch?: boolean;
+  switchValue?: boolean;
   onPress?: () => void;
+  onSwitchChange?: (value: boolean) => void;
 }
 
 function ProfileRow({
@@ -33,7 +39,9 @@ function ProfileRow({
   selected = false,
   showChevron = false,
   showSwitch = false,
+  switchValue = false,
   onPress,
+  onSwitchChange,
 }: ProfileRowProps) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
@@ -58,9 +66,10 @@ function ProfileRow({
       {showSwitch ? (
         <Switch
           ios_backgroundColor={colors.border}
+          onValueChange={onSwitchChange}
           thumbColor={colors.white}
           trackColor={{ false: colors.border, true: colors.primary }}
-          value
+          value={switchValue}
         />
       ) : null}
     </Pressable>
@@ -86,7 +95,13 @@ function getStoreSubtitle(store: ApiStoreSummary): string {
 export default function ConsumerProfileScreen() {
   const user = useAuthStore((state) => state.user);
   const refreshUser = useAuthStore((state) => state.refreshUser);
+  const updateUser = useAuthStore((state) => state.updateUser);
   const logout = useAuthStore((state) => state.logout);
+  const { showAlert } = useAppModal();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -108,6 +123,37 @@ export default function ConsumerProfileScreen() {
     router.replace('/(auth)/login');
   };
 
+  const handleSaveProfile = async (payload: { name: string; avatar_url?: string | null }) => {
+    setIsSavingProfile(true);
+
+    try {
+      await updateUser(payload);
+      setIsEditModalOpen(false);
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível salvar suas informações.',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleToggleNotifications = async (enabled: boolean) => {
+    setIsUpdatingNotifications(true);
+
+    try {
+      await updateUser({ notifications_enabled: enabled });
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível atualizar as notificações.',
+      });
+    } finally {
+      setIsUpdatingNotifications(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
@@ -123,7 +169,7 @@ export default function ConsumerProfileScreen() {
             <AvatarPicker
               imageUri={user?.avatar_url ?? null}
               initial={userInitial}
-              onImageSelected={() => undefined}
+              onImageSelected={() => setIsEditModalOpen(true)}
             />
             <Text style={styles.profileName}>{user?.name ?? 'Usuário'}</Text>
             <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
@@ -169,34 +215,52 @@ export default function ConsumerProfileScreen() {
               <ProfileRow
                 icon="person-outline"
                 label="Editar informações pessoais"
+                onPress={() => setIsEditModalOpen(true)}
                 showChevron
               />
-              <ProfileRow icon="notifications-outline" label="Notificações" showSwitch />
-              <ProfileRow icon="location-outline" label="Endereço padrão" showChevron />
+              <View style={styles.divider} />
+              <ProfileRow
+                icon="notifications-outline"
+                label="Notificações"
+                onSwitchChange={(value) => void handleToggleNotifications(value)}
+                showSwitch
+                switchValue={user?.notifications_enabled ?? true}
+              />
+              <View style={styles.divider} />
+              <ProfileRow
+                icon="lock-closed-outline"
+                label="Alterar senha"
+                onPress={() => setIsPasswordModalOpen(true)}
+                showChevron
+              />
             </SectionCard>
           </View>
 
-          <View style={styles.sectionDivider} />
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Suporte</Text>
-            <SectionCard>
-              <ProfileRow icon="chatbox-outline" label="Fale conosco" mutedIcon showChevron />
-              <ProfileRow icon="star-outline" label="Avaliar o app" mutedIcon showChevron />
-            </SectionCard>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void handleLogout()}
-            style={styles.logoutButton}
-          >
-            <Text style={styles.logoutText}>Sair</Text>
-          </Pressable>
+          <LogoutButton onPress={() => void handleLogout()} />
         </ScrollView>
 
         <BottomNav active="profile" />
       </View>
+
+      <EditPersonalInfoModal
+        initialAvatarUrl={user?.avatar_url}
+        initialName={user?.name ?? ''}
+        isSaving={isSavingProfile}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleSaveProfile}
+        visible={isEditModalOpen}
+      />
+
+      <ChangePasswordModal
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSuccess={() =>
+          void showAlert({
+            title: 'Senha alterada',
+            subtitle: 'Sua nova senha foi salva com sucesso.',
+          })
+        }
+        visible={isPasswordModalOpen}
+      />
     </SafeAreaView>
   );
 }
@@ -222,14 +286,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 26,
     fontWeight: '700',
-  },
-  editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutralSoft,
   },
   profileSummary: {
     alignItems: 'center',
@@ -331,18 +387,5 @@ const styles = StyleSheet.create({
   sectionDivider: {
     height: 1,
     backgroundColor: colors.border,
-  },
-  logoutButton: {
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md - 2,
-    backgroundColor: colors.surface,
-  },
-  logoutText: {
-    color: colors.danger,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '700',
   },
 });

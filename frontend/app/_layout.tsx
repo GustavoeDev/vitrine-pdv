@@ -1,26 +1,15 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
-import * as NavigationBar from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
-import * as SystemUI from 'expo-system-ui';
-import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { AppModalProvider } from '@/src/contexts/AppModalContext';
 import { colors } from '@/src/constants/tokens';
+import { useAndroidSystemUiTheme } from '@/src/hooks/useAndroidSystemUiTheme';
 import { queryClient } from '@/src/lib/queryClient';
 
 export default function RootLayout() {
-  useEffect(() => {
-    if (Platform.OS !== 'android') {
-      return;
-    }
-
-    void (async () => {
-      await SystemUI.setBackgroundColorAsync(colors.black);
-      await NavigationBar.setButtonStyleAsync('light');
-    })();
-  }, []);
+  useAndroidSystemUiTheme();
 
   return (
     <QueryClientProvider client={queryClient}>

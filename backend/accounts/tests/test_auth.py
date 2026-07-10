@@ -101,3 +101,49 @@ def test_me_patch_updates_profile(api_client: APIClient) -> None:
     assert response.status_code == status.HTTP_200_OK
     assert response.data["name"] == "Maria Silva"
     assert response.data["notifications_enabled"] is False
+
+
+@pytest.mark.django_db
+def test_change_password_updates_credentials(api_client: APIClient) -> None:
+    user = User.objects.create_user(
+        email="maria@example.com",
+        name="Maria",
+        password="senha1234",
+    )
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        reverse("users-change-password"),
+        {
+            "current_password": "senha1234",
+            "new_password": "nova12345",
+            "new_password_confirm": "nova12345",
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    user.refresh_from_db()
+    assert user.check_password("nova12345")
+
+
+@pytest.mark.django_db
+def test_change_password_rejects_wrong_current_password(api_client: APIClient) -> None:
+    user = User.objects.create_user(
+        email="maria@example.com",
+        name="Maria",
+        password="senha1234",
+    )
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        reverse("users-change-password"),
+        {
+            "current_password": "errada123",
+            "new_password": "nova12345",
+            "new_password_confirm": "nova12345",
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST

@@ -63,3 +63,13 @@ export async function updateCurrentUser(
   const { data } = await api.patch('/users/me/', payload);
   return userSchema.parse(data);
 }
+
+export interface ChangePasswordInput {
+  current_password: string;
+  new_password: string;
+  new_password_confirm: string;
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<void> {
+  await api.post('/users/me/change-password/', input);
+}

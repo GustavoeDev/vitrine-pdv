@@ -20,6 +20,9 @@ interface AuthState {
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (
+    payload: Partial<Pick<ApiUser, 'name' | 'notifications_enabled' | 'avatar_url'>>,
+  ) => Promise<ApiUser>;
   refreshSession: () => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -99,6 +102,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const user = await fetchCurrentUser();
     set({ user, accessToken });
+  },
+
+  updateUser: async (payload) => {
+    const user = await updateCurrentUser(payload);
+    set({ user });
+    return user;
   },
 
   refreshSession: async () => {

@@ -17,6 +17,11 @@ import {
   updateMerchantPromotionItem,
   updateMerchantPromotionItemStatus,
 } from '@/src/services/merchantPromotions';
+import {
+  fetchMerchantStore,
+  updateMerchantStore,
+  type UpdateMerchantStoreInput,
+} from '@/src/services/merchantStore';
 import { discoveryKeys } from '@/src/queries/useDiscovery';
 import { promotionKeys } from '@/src/queries/usePromotions';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -31,6 +36,7 @@ import {
   MerchantStatsRange,
 } from '@/src/types/merchant';
 import { resolveMerchantStore, resolveMerchantStoreId } from '@/src/utils/merchantStore';
+import { mapStoreToMerchantProfile } from '@/src/utils/merchantStoreProfile';
 
 export const merchantProductKeys = {
   all: (storeId?: string) => ['merchant', 'products', storeId ?? 'default'] as const,
@@ -38,6 +44,10 @@ export const merchantProductKeys = {
 
 export const merchantPromotionKeys = {
   all: (storeId?: string) => ['merchant', 'promotions', storeId ?? 'default'] as const,
+};
+
+export const merchantStoreKeys = {
+  detail: (storeId?: string) => ['merchant', 'store', storeId ?? 'default'] as const,
 };
 
 interface MerchantContextValue {
@@ -50,9 +60,12 @@ interface MerchantContextValue {
   promotions: MerchantPromotion[];
   isLoadingPromotions: boolean;
   isSavingPromotion: boolean;
+  isLoadingStore: boolean;
+  isSavingStore: boolean;
   statsRange: MerchantStatsRange;
   setStatsRange: (range: MerchantStatsRange) => void;
   updateProfile: (patch: Partial<MerchantProfileData>) => void;
+  updateStore: (input: UpdateMerchantStoreInput) => Promise<void>;
   addProduct: (input: MerchantCreateProductInput) => Promise<void>;
   toggleProduct: (productId: string) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
@@ -71,7 +84,8 @@ const MerchantContext = createContext<MerchantContextValue | null>(null);
 
 export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const userStores = useAuthStore((state) => state.user?.stores ?? []);
+  const authUser = useAuthStore((state) => state.user);
+  const userStores = authUser?.stores ?? [];
   const activeStoreId = resolveMerchantStoreId(userStores);
   const activeStore = resolveMerchantStore(userStores, activeStoreId);
   const hasStore = Boolean(activeStoreId);
@@ -79,30 +93,36 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState(merchantProfileMock);
   const [statsRange, setStatsRange] = useState<MerchantStatsRange>('30d');
 
+  const storeQuery = useQuery({
+    queryKey: merchantStoreKeys.detail(activeStoreId),
+    queryFn: () => fetchMerchantStore(activeStoreId!),
+    enabled: hasStore,
+  });
+
   useEffect(() => {
-    if (!activeStore) {
+    if (!storeQuery.data || !authUser) {
+      return;
+    }
+
+    setProfile(mapStoreToMerchantProfile(storeQuery.data, authUser));
+  }, [authUser, storeQuery.data]);
+
+  useEffect(() => {
+    if (!authUser) {
       return;
     }
 
     setProfile((current) => ({
       ...current,
-      store: {
-        ...current.store,
-        id: activeStore.id,
-        name: activeStore.name,
-        status: activeStore.status,
-        category_id: activeStore.category_id,
-        logo_url: activeStore.logo_url,
-        cover_photo_url: activeStore.cover_photo_url,
+      user: {
+        ...current.user,
+        name: authUser.name,
+        email: authUser.email,
+        avatar_url: authUser.avatar_url,
+        notifications_enabled: authUser.notifications_enabled,
       },
-      category: {
-        ...current.category,
-        id: activeStore.category_id,
-        name: activeStore.category_name,
-      },
-      logo_url: activeStore.logo_url ?? current.logo_url,
     }));
-  }, [activeStore]);
+  }, [authUser]);
 
   const productsQuery = useQuery({
     queryKey: merchantProductKeys.all(activeStoreId),
@@ -195,6 +215,18 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
+  const updateStoreMutation = useMutation({
+    mutationFn: (input: UpdateMerchantStoreInput) =>
+      updateMerchantStore(activeStoreId!, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: merchantStoreKeys.detail(activeStoreId) }),
+        queryClient.invalidateQueries({ queryKey: discoveryKeys.store(activeStoreId!) }),
+      ]);
+      await useAuthStore.getState().refreshUser();
+    },
+  });
+
   const updateProfile = useCallback((patch: Partial<MerchantProfileData>) => {
     setProfile((current) => ({ ...current, ...patch }));
   }, []);
@@ -249,6 +281,13 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     [updatePromotionStatusMutation],
   );
 
+  const updateStore = useCallback(
+    async (input: UpdateMerchantStoreInput) => {
+      await updateStoreMutation.mutateAsync(input);
+    },
+    [updateStoreMutation],
+  );
+
   const value = useMemo(
     () => ({
       profile,
@@ -266,9 +305,12 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         createPromotionMutation.isPending ||
         updatePromotionMutation.isPending ||
         updatePromotionStatusMutation.isPending,
+      isLoadingStore: storeQuery.isLoading,
+      isSavingStore: updateStoreMutation.isPending,
       statsRange,
       setStatsRange,
       updateProfile,
+      updateStore,
       addProduct,
       toggleProduct,
       deleteProduct,
@@ -290,8 +332,11 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       createPromotionMutation.isPending,
       updatePromotionMutation.isPending,
       updatePromotionStatusMutation.isPending,
+      storeQuery.isLoading,
+      updateStoreMutation.isPending,
       statsRange,
       updateProfile,
+      updateStore,
       addProduct,
       toggleProduct,
       deleteProduct,

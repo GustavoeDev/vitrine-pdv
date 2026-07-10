@@ -319,3 +319,55 @@ class GeocodeQuerySerializer(serializers.Serializer):
     city = serializers.CharField(max_length=100)
     state = serializers.CharField(max_length=2)
     zipcode = serializers.CharField(max_length=8)
+
+
+class UpdateMerchantStoreSerializer(serializers.Serializer):
+    category_id = serializers.UUIDField(required=False)
+    name = serializers.CharField(max_length=255, required=False)
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    subcategory = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=100,
+    )
+    phone_number = serializers.CharField(max_length=20, required=False)
+    cover_photo_url = serializers.URLField(required=False, allow_null=True, allow_blank=True)
+    logo_url = serializers.URLField(required=False, allow_null=True, allow_blank=True)
+    address = AddressSerializer(required=False)
+    business_hours = BusinessHourInputSerializer(many=True, required=False)
+
+    def validate_category_id(self, value):
+        if not Category.objects.filter(id=value, parent__isnull=True).exists():
+            raise serializers.ValidationError("Categoria inválida.")
+        return value
+
+    def validate_phone_number(self, value: str) -> str:
+        digits = re.sub(r"\D", "", value)
+        if len(digits) < 10:
+            raise serializers.ValidationError(
+                "Informe um telefone válido com DDD."
+            )
+        return digits
+
+    def validate_business_hours(self, value: list) -> list:
+        if not value:
+            raise serializers.ValidationError(
+                "Informe pelo menos um horário de funcionamento."
+            )
+        return value
+
+    def validate(self, attrs: dict) -> dict:
+        cover = attrs.get("cover_photo_url")
+        logo = attrs.get("logo_url")
+
+        if cover == "":
+            attrs["cover_photo_url"] = None
+
+        if logo == "":
+            attrs["logo_url"] = None
+
+        return attrs

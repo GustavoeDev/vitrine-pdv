@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from stores.models import Store
 
 from accounts.serializers import (
+    ChangePasswordSerializer,
     EmailTokenObtainPairSerializer,
     RegisterSerializer,
     UserSerializer,
@@ -79,3 +80,19 @@ class MeView(APIView):
         serializer.save()
         user = self._get_user_with_stores(request.user)
         return Response(UserSerializer(user).data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = ChangePasswordSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        request.user.set_password(serializer.validated_data["new_password"])
+        request.user.save(update_fields=["password"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
