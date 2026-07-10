@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from engagement.models import Favorite, Review
+from engagement.models import Favorite, Notification, Review
 from marketing.services.promotion_queries import store_has_active_promotion
 
 
@@ -28,6 +28,7 @@ class FavoriteStoreSerializer(serializers.ModelSerializer):
             "logo_url",
             "cover_photo_url",
             "has_active_promotion",
+            "notifications_enabled",
             "favorited_at",
         )
 
@@ -35,8 +36,39 @@ class FavoriteStoreSerializer(serializers.ModelSerializer):
         return store_has_active_promotion(store_id=favorite.store_id)
 
 
+class UpdateFavoriteNotificationsSerializer(serializers.Serializer):
+    notifications_enabled = serializers.BooleanField()
+
+
 class CreateFavoriteSerializer(serializers.Serializer):
     store_id = serializers.UUIDField()
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    store_id = serializers.UUIDField(read_only=True, allow_null=True)
+    store_name = serializers.CharField(source="store.name", read_only=True, allow_null=True)
+    store_logo_url = serializers.URLField(source="store.logo_url", read_only=True, allow_null=True)
+    promotion_id = serializers.UUIDField(read_only=True, allow_null=True)
+    review_id = serializers.UUIDField(read_only=True, allow_null=True)
+    review_rating = serializers.IntegerField(source="review.rating", read_only=True, allow_null=True)
+
+    class Meta:
+        model = Notification
+        fields = (
+            "id",
+            "audience",
+            "notification_type",
+            "title",
+            "message",
+            "is_read",
+            "created_at",
+            "store_id",
+            "store_name",
+            "store_logo_url",
+            "promotion_id",
+            "review_id",
+            "review_rating",
+        )
 
 
 class StoreReviewSerializer(serializers.ModelSerializer):

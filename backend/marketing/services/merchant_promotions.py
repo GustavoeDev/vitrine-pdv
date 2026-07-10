@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from catalog.models import Product
+from engagement.services.notifications import dispatch_daily_promotion_notifications
 from marketing.models import ProductDiscount, Promotion, PromotionStatus
 from marketing.services.promotion_queries import resolve_promotion_status
 from stores.models import Store
@@ -22,11 +23,13 @@ def create_daily_promotion(*, store: Store, validated_data: dict) -> Promotion:
 
     status = resolve_promotion_status(start_date=start_date, end_date=end_date)
 
-    return Promotion.objects.create(
+    promotion = Promotion.objects.create(
         store=store,
         status=status,
         **validated_data,
     )
+    dispatch_daily_promotion_notifications(promotion=promotion)
+    return promotion
 
 
 @transaction.atomic
@@ -82,6 +85,7 @@ def update_daily_promotion_status(*, promotion: Promotion, status: str) -> Promo
 
     promotion.status = status
     promotion.save(update_fields=["status"])
+    dispatch_daily_promotion_notifications(promotion=promotion)
     return promotion
 
 
@@ -122,6 +126,7 @@ def update_daily_promotion(*, promotion: Promotion, validated_data: dict) -> Pro
 
     promotion.status = resolve_promotion_status(start_date=promotion.start_date, end_date=promotion.end_date)
     promotion.save()
+    dispatch_daily_promotion_notifications(promotion=promotion)
     return promotion
 
 

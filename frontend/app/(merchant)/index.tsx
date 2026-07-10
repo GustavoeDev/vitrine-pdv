@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useMerchant, useMerchantStats } from '@/src/contexts/MerchantContext';
+import { useUnreadNotificationsCount } from '@/src/queries/useNotifications';
 
 function QuickAction({
   icon,
@@ -37,6 +38,7 @@ function QuickAction({
 export default function MerchantDashboardScreen() {
   const { profile, products } = useMerchant();
   const stats = useMerchantStats();
+  const { data: unreadNotifications = 0 } = useUnreadNotificationsCount('merchant');
   const storeName = profile.store.name;
 
   return (
@@ -44,8 +46,19 @@ export default function MerchantDashboardScreen() {
       <View style={styles.screen}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>Ola, {storeName}</Text>
-            <Text style={styles.subtitle}>Seu painel de vitrine digital</Text>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>Ola, {storeName}</Text>
+              <Text style={styles.subtitle}>Seu painel de vitrine digital</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Abrir notificações"
+              accessibilityRole="button"
+              onPress={() => router.push('/(merchant)/notifications')}
+              style={styles.notificationButton}
+            >
+              <Ionicons color={colors.textPrimary} name="notifications-outline" size={24} />
+              {unreadNotifications > 0 ? <View style={styles.notificationDot} /> : null}
+            </Pressable>
           </View>
 
           <View style={styles.statsRow}>
@@ -158,9 +171,27 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   screen: { flex: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 10 },
   scrollContent: { paddingTop: 24, paddingBottom: spacing.lg, gap: spacing.md },
-  header: { gap: 4 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
+  headerText: { flex: 1, gap: 4 },
   title: { color: colors.textPrimary, fontSize: 22, lineHeight: 28, fontWeight: '700' },
   subtitle: { color: colors.textSecondary, fontSize: 15, lineHeight: 20, fontWeight: '400' },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: colors.neutralSoft,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
     flex: 1,

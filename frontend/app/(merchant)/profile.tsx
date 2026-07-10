@@ -261,6 +261,13 @@ export default function MerchantProfileScreen() {
               </View>
               <View style={styles.divider} />
               <ProfileActionRow
+                icon="mail-outline"
+                label="Central de notificações"
+                subtitle="Avaliações recebidas pela sua loja"
+                onPress={() => router.push('/(merchant)/notifications')}
+              />
+              <View style={styles.divider} />
+              <ProfileActionRow
                 icon="lock-closed-outline"
                 label="Alterar senha"
                 onPress={() => setIsPasswordModalOpen(true)}

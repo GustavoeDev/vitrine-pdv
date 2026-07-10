@@ -17,7 +17,9 @@ interface FeaturedStoreCardProps {
 interface FavoriteStoreCardProps {
   store: Store;
   hasActivePromotion?: boolean;
+  notificationsEnabled?: boolean;
   onPress?: () => void;
+  onToggleNotifications?: () => void;
 }
 
 export function NearbyStoreCard({ onPress, store }: NearbyStoreCardProps) {
@@ -53,7 +55,9 @@ export function FeaturedStoreCard({ onPress, store }: FeaturedStoreCardProps) {
 export function FavoriteStoreCard({
   store,
   hasActivePromotion = false,
+  notificationsEnabled = true,
   onPress,
+  onToggleNotifications,
 }: FavoriteStoreCardProps) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.favoriteCard}>
@@ -67,9 +71,26 @@ export function FavoriteStoreCard({
             </Text>
           </View>
           <View style={styles.favoriteActions}>
-            <View style={styles.favoriteIconWrap}>
-              <Ionicons color={colors.primary} name="notifications-outline" size={16} />
-            </View>
+            <Pressable
+              accessibilityLabel={
+                notificationsEnabled
+                  ? 'Desativar notificações desta loja'
+                  : 'Ativar notificações desta loja'
+              }
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={(event) => {
+                event.stopPropagation();
+                onToggleNotifications?.();
+              }}
+              style={styles.favoriteIconWrap}
+            >
+              <Ionicons
+                color={notificationsEnabled ? colors.primary : colors.textMuted}
+                name={notificationsEnabled ? 'notifications' : 'notifications-off-outline'}
+                size={16}
+              />
+            </Pressable>
             <View style={styles.favoriteIconWrap}>
               <Ionicons color={colors.primary} name="heart" size={16} />
             </View>

@@ -5,7 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FavoriteStoreCard } from '@/src/components/features/StoreCards';
 import { BottomNav } from '@/src/components/ui/BottomNav';
 import { colors, spacing } from '@/src/constants/tokens';
-import { useFavorites } from '@/src/queries/usePromotions';
+import { useAppModal } from '@/src/contexts/AppModalContext';
+import {
+  useFavorites,
+  useToggleFavoriteNotifications,
+} from '@/src/queries/usePromotions';
 import { DEFAULT_STORE_COVER } from '@/src/constants/images';
 import { Store } from '@/src/types';
 import type { ApiFavoriteStore } from '@/src/services/favorites';
@@ -17,7 +21,7 @@ function mapFavoriteToStore(favorite: ApiFavoriteStore): Store {
     category: favorite.category_name,
     subcategory: favorite.subcategory || favorite.category_name,
     distance: 'Favorita',
-    rating: 4.5,
+    rating: 0,
     reviews: 0,
     coverImageUrl: favorite.cover_photo_url ?? DEFAULT_STORE_COVER,
     avatarUrl: favorite.logo_url ?? favorite.cover_photo_url ?? DEFAULT_STORE_COVER,
@@ -25,7 +29,23 @@ function mapFavoriteToStore(favorite: ApiFavoriteStore): Store {
 }
 
 export default function FavoritesScreen() {
+  const { showAlert } = useAppModal();
   const { data: favorites = [], isLoading, isError } = useFavorites();
+  const toggleFavoriteNotifications = useToggleFavoriteNotifications();
+
+  const handleToggleNotifications = async (favorite: ApiFavoriteStore) => {
+    try {
+      await toggleFavoriteNotifications.mutateAsync({
+        storeId: favorite.id,
+        notificationsEnabled: !favorite.notifications_enabled,
+      });
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível atualizar as notificações desta loja.',
+      });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -39,6 +59,9 @@ export default function FavoritesScreen() {
               <Text style={styles.title}>Favoritos</Text>
               <Text style={styles.count}>({favorites.length} lojas)</Text>
             </View>
+            <Text style={styles.helperText}>
+              Toque no sino para receber ou não as promoções do dia de cada loja.
+            </Text>
           </View>
 
           {isLoading ? (
@@ -55,10 +78,12 @@ export default function FavoritesScreen() {
                 <FavoriteStoreCard
                   key={favorite.id}
                   hasActivePromotion={favorite.has_active_promotion}
+                  notificationsEnabled={favorite.notifications_enabled}
+                  store={mapFavoriteToStore(favorite)}
                   onPress={() =>
                     router.push(`/(consumer)/stores/${favorite.id}?origin=favorites` as never)
                   }
-                  store={mapFavoriteToStore(favorite)}
+                  onToggleNotifications={() => void handleToggleNotifications(favorite)}
                 />
               ))}
             </View>
@@ -88,9 +113,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   titleGroup: {
     flexDirection: 'row',
@@ -104,6 +127,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   count: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '400',
+  },
+  helperText: {
     color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 19,

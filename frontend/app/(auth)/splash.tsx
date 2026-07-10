@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,21 +9,21 @@ import { colors, spacing } from '@/src/constants/tokens';
 import { useAuthStore } from '@/src/stores/authStore';
 
 export default function SplashScreen() {
-  const hydrate = useAuthStore((state) => state.hydrate);
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const accessToken = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      void hydrate();
+      setMinSplashElapsed(true);
     }, 1800);
 
     return () => clearTimeout(timeoutId);
-  }, [hydrate]);
+  }, []);
 
   useEffect(() => {
-    if (!isHydrated) {
+    if (!isHydrated || !minSplashElapsed) {
       return;
     }
 
@@ -38,7 +38,7 @@ export default function SplashScreen() {
     }
 
     router.replace('./login');
-  }, [accessToken, isHydrated, user]);
+  }, [accessToken, isHydrated, minSplashElapsed, user]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

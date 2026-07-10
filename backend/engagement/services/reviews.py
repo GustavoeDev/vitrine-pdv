@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
 
 from engagement.models import Review
+from engagement.services.notifications import dispatch_store_review_notification
 from stores.models import Store, StoreStatus
 
 
@@ -21,12 +22,15 @@ def create_store_review(*, user, store: Store, rating: int, comment: str = "") -
     if Review.objects.filter(user=user, store=store).exists():
         raise ValidationError({"detail": "Você já avaliou esta loja."})
 
-    return Review.objects.create(
+    review = Review.objects.create(
         user=user,
         store=store,
         rating=rating,
         comment=comment,
     )
+    review = Review.objects.select_related("user", "store", "store__user").get(pk=review.pk)
+    dispatch_store_review_notification(review=review)
+    return review
 
 
 @transaction.atomic

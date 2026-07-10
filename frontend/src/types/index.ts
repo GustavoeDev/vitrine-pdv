@@ -198,6 +198,11 @@ export interface NotificationItem {
   time: string;
   unread: boolean;
   avatarUrl: string;
+  notificationType?: 'daily_promotion' | 'store_review';
+  storeId?: string | null;
+  promotionId?: string | null;
+  reviewId?: string | null;
+  reviewRating?: number | null;
   notification_record?: NotificationRecord;
   promotion_record?: PromotionRecord;
 }

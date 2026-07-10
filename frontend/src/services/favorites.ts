@@ -12,6 +12,7 @@ const favoriteStoreSchema = z.object({
   logo_url: z.string().nullable(),
   cover_photo_url: z.string().nullable(),
   has_active_promotion: z.boolean(),
+  notifications_enabled: z.boolean(),
   favorited_at: z.string(),
 });
 
@@ -29,4 +30,14 @@ export async function addFavorite(storeId: string): Promise<ApiFavoriteStore> {
 
 export async function removeFavorite(storeId: string): Promise<void> {
   await api.delete(`/favorites/${storeId}/`);
+}
+
+export async function updateFavoriteNotifications(
+  storeId: string,
+  notificationsEnabled: boolean,
+): Promise<ApiFavoriteStore> {
+  const { data } = await api.patch(`/favorites/${storeId}/notifications/`, {
+    notifications_enabled: notificationsEnabled,
+  });
+  return favoriteStoreSchema.parse(data);
 }

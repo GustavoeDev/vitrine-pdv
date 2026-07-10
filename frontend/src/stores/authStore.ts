@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '@/src/lib/tokenStorage';
+import { disconnectNotificationSocket } from '@/src/lib/notificationSocket';
 import { refreshAccessToken } from '@/src/lib/refreshToken';
 import {
   fetchCurrentUser,
@@ -27,6 +28,8 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
+let hydrateInFlight: Promise<void> | null = null;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
@@ -34,26 +37,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticating: false,
 
   hydrate: async () => {
-    const accessToken = await getAccessToken();
-
-    if (!accessToken) {
-      set({ accessToken: null, user: null, isHydrated: true });
+    if (get().isHydrated) {
       return;
     }
 
-    set({ accessToken, isAuthenticating: true });
+    if (hydrateInFlight) {
+      return hydrateInFlight;
+    }
 
-    try {
-      const user = await fetchCurrentUser();
-      set({ user, accessToken, isHydrated: true, isAuthenticating: false });
-    } catch {
-      const refreshed = await get().refreshSession();
-      if (!refreshed) {
-        await clearTokens();
-        set({ user: null, accessToken: null, isHydrated: true, isAuthenticating: false });
+    const runHydrate = async () => {
+      const accessToken = await getAccessToken();
+
+      if (!accessToken) {
+        set({ accessToken: null, user: null, isHydrated: true });
         return;
       }
-      set({ isHydrated: true, isAuthenticating: false });
+
+      set({ accessToken, isAuthenticating: true });
+
+      try {
+        const user = await fetchCurrentUser();
+        set({ user, accessToken, isHydrated: true, isAuthenticating: false });
+      } catch {
+        const refreshed = await get().refreshSession();
+        if (!refreshed) {
+          await clearTokens();
+          set({ user: null, accessToken: null, isHydrated: true, isAuthenticating: false });
+          return;
+        }
+        set({ isHydrated: true, isAuthenticating: false });
+      }
+    };
+
+    hydrateInFlight = runHydrate();
+
+    try {
+      await hydrateInFlight;
+    } finally {
+      hydrateInFlight = null;
     }
   },
 
@@ -63,7 +84,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const tokens = await loginRequest(input);
       await setTokens(tokens.access, tokens.refresh);
       const user = await fetchCurrentUser();
-      set({ accessToken: tokens.access, user, isAuthenticating: false });
+      set({ accessToken: tokens.access, user, isHydrated: true, isAuthenticating: false });
     } catch (error) {
       set({ isAuthenticating: false });
       throw error;
@@ -86,6 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         accessToken: session.access,
         user,
+        isHydrated: true,
         isAuthenticating: false,
       });
     } catch (error) {
@@ -128,6 +150,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    disconnectNotificationSocket();
     await clearTokens();
     set({ user: null, accessToken: null });
   },

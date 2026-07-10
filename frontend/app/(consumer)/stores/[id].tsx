@@ -25,7 +25,7 @@ import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
 import { promotionOfTheDay } from '@/src/mocks/consumer';
 import { usePublicStore, useStoreProducts, discoveryKeys } from '@/src/queries/useDiscovery';
-import { useIsStoreFavorited, useToggleFavorite } from '@/src/queries/usePromotions';
+import { useIsStoreFavorited, useFavoriteStore, useToggleFavorite, useToggleFavoriteNotifications } from '@/src/queries/usePromotions';
 import {
   useIsStoreOwner,
   useMyStoreReview,
@@ -123,7 +123,9 @@ export default function StoreProfileScreen() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
   const isFavorited = useIsStoreFavorited(storeId);
+  const favoriteStore = useFavoriteStore(storeId);
   const toggleFavorite = useToggleFavorite();
+  const toggleFavoriteNotifications = useToggleFavoriteNotifications();
   const isStoreOwner = useIsStoreOwner(storeId);
   const submitReview = useSubmitStoreReview(storeId ?? '');
   const { data: apiStore, isLoading: isLoadingStore, isError: isStoreError } = usePublicStore(storeId);
@@ -261,6 +263,24 @@ export default function StoreProfileScreen() {
     }
   };
 
+  const handleStoreNotificationsPress = async () => {
+    if (!storeId || !favoriteStore) {
+      return;
+    }
+
+    try {
+      await toggleFavoriteNotifications.mutateAsync({
+        storeId,
+        notificationsEnabled: !favoriteStore.notifications_enabled,
+      });
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível atualizar as notificações desta loja.',
+      });
+    }
+  };
+
   if (isLoadingStore) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -330,6 +350,19 @@ export default function StoreProfileScreen() {
               iconColor={isFavorited ? colors.primary : undefined}
               onPress={() => void handleFavoritePress()}
             />
+            {isFavorited ? (
+              <ActionButton
+                icon={
+                  favoriteStore?.notifications_enabled
+                    ? 'notifications'
+                    : 'notifications-off-outline'
+                }
+                iconColor={
+                  favoriteStore?.notifications_enabled ? colors.primary : undefined
+                }
+                onPress={() => void handleStoreNotificationsPress()}
+              />
+            ) : null}
           </View>
 
           <View style={styles.tabs}>

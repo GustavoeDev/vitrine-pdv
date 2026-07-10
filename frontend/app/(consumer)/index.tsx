@@ -20,6 +20,7 @@ import { colors, spacing } from '@/src/constants/tokens';
 import { useCategories } from '@/src/queries/useCategories';
 import { usePublicStores } from '@/src/queries/useDiscovery';
 import { useFavoritePromotions, useFeaturedPromotion } from '@/src/queries/usePromotions';
+import { useUnreadNotificationsCount } from '@/src/queries/useNotifications';
 import type { ApiConsumerPromotion } from '@/src/services/promotions';
 import { mapRootCategoriesToChips } from '@/src/services/categories';
 import { mapApiPublicStoreToStore } from '@/src/utils/consumerMappers';
@@ -34,6 +35,7 @@ export default function ConsumerHomeScreen() {
   const { data: apiStores = [] } = usePublicStores({ limit: 20 });
   const { data: featuredPromotion } = useFeaturedPromotion();
   const { data: favoritePromotions = [] } = useFavoritePromotions();
+  const { data: unreadNotifications = 0 } = useUnreadNotificationsCount('consumer');
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const categoryChips = useMemo(() => mapRootCategoriesToChips(categories), [categories]);
 
@@ -97,7 +99,7 @@ export default function ConsumerHomeScreen() {
               style={styles.notificationButton}
             >
               <Ionicons color={colors.textPrimary} name="notifications-outline" size={24} />
-              <View style={styles.notificationDot} />
+              {unreadNotifications > 0 ? <View style={styles.notificationDot} /> : null}
             </Pressable>
           </View>
 

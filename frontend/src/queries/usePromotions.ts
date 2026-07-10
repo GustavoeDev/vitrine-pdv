@@ -4,6 +4,7 @@ import {
   addFavorite,
   fetchFavorites,
   removeFavorite,
+  updateFavoriteNotifications,
 } from '@/src/services/favorites';
 import {
   fetchFavoritePromotions,
@@ -65,6 +66,33 @@ export function useIsStoreFavorited(storeId?: string) {
   const { data: favorites = [] } = useFavorites();
 
   return favorites.some((favorite) => favorite.id === storeId);
+}
+
+export function useFavoriteStore(storeId?: string) {
+  const { data: favorites = [] } = useFavorites();
+
+  if (!storeId) {
+    return null;
+  }
+
+  return favorites.find((favorite) => favorite.id === storeId) ?? null;
+}
+
+export function useToggleFavoriteNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      storeId,
+      notificationsEnabled,
+    }: {
+      storeId: string;
+      notificationsEnabled: boolean;
+    }) => updateFavoriteNotifications(storeId, notificationsEnabled),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: favoriteKeys.all });
+    },
+  });
 }
 
 export function useToggleFavorite() {
