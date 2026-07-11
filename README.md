@@ -117,8 +117,12 @@ Na EC2, use [`backend/docker-compose.prod.yml`](backend/docker-compose.prod.yml)
 
 Pipeline em [`.github/workflows/backend.yml`](.github/workflows/backend.yml):
 
-1. **PR / push** → `pytest` com Postgres
-2. **push na `main`** → build da imagem → push Docker Hub → deploy SSH na EC2
+| Evento | Branch | Jobs |
+|--------|--------|------|
+| PR ou push | `develop` | **test** (pytest) |
+| push | `master` | **build-and-push** + **deploy** (sem testes) |
+
+Fluxo sugerido: feature → PR para `develop` (testes) → merge → PR para `master` → merge (deploy automático).
 
 Configure em **GitHub → Settings → Secrets and variables → Actions**:
 
