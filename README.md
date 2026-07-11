@@ -109,9 +109,28 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 
 API em http://localhost:8080 (WebSocket: `ws://localhost:8080/ws/notifications/`)
 
-### Deploy AWS (fase manual)
+### Deploy AWS
 
-Na EC2, use apenas [`backend/docker-compose.prod.yml`](backend/docker-compose.prod.yml) com `.env` apontando para o RDS e `USE_S3=true`. Ver [`backend/.env.production.example`](backend/.env.production.example).
+Na EC2, use [`backend/docker-compose.prod.yml`](backend/docker-compose.prod.yml) com `.env` apontando para o RDS e `USE_S3=true`. Ver [`backend/.env.production.example`](backend/.env.production.example).
+
+### CI/CD (GitHub Actions)
+
+Pipeline em [`.github/workflows/backend.yml`](.github/workflows/backend.yml):
+
+1. **PR / push** → `pytest` com Postgres
+2. **push na `main`** → build da imagem → push Docker Hub → deploy SSH na EC2
+
+Configure em **GitHub → Settings → Secrets and variables → Actions**:
+
+| Secret | Descrição |
+|--------|-----------|
+| `DOCKERHUB_USERNAME` | Usuário Docker Hub |
+| `DOCKERHUB_TOKEN` | Access token do Docker Hub |
+| `EC2_HOST` | IP elástico ou domínio da EC2 |
+| `EC2_USER` | `ubuntu` |
+| `EC2_SSH_KEY` | Conteúdo completo do arquivo `.pem` |
+
+Na EC2, o `.env` deve incluir `DOCKER_IMAGE=seu-usuario/vitrine-pdv-api:latest` (mesmo nome usado no workflow).
 
 #### Documentação da API (Swagger)
 

@@ -1,7 +1,7 @@
 services:
   api:
-    build: .
-    image: ${DOCKER_IMAGE:-vitrine-pdv-api:local}
+    image: ${DOCKER_IMAGE:?Set DOCKER_IMAGE in .env e.g. usuario/vitrine-pdv-api:latest}
+    pull_policy: always
     container_name: vitrine_pdv_api
     restart: unless-stopped
     env_file:
