@@ -23,9 +23,8 @@ import { StoreReviewsSummary } from '@/src/components/features/store/StoreReview
 import { DEFAULT_STORE_AVATAR, DEFAULT_STORE_COVER } from '@/src/constants/images';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
-import { promotionOfTheDay } from '@/src/mocks/consumer';
 import { usePublicStore, useStoreProducts, discoveryKeys } from '@/src/queries/useDiscovery';
-import { useIsStoreFavorited, useFavoriteStore, useToggleFavorite, useToggleFavoriteNotifications } from '@/src/queries/usePromotions';
+import { useIsStoreFavorited, useFavoriteStore, useToggleFavorite, useToggleFavoriteNotifications, useStoreActivePromotions } from '@/src/queries/usePromotions';
 import {
   useIsStoreOwner,
   useMyStoreReview,
@@ -47,6 +46,7 @@ import {
 import { openWhatsApp } from '@/src/utils/whatsapp';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeRouteParam } from '@/src/utils/routeParams';
+import type { ApiConsumerPromotion } from '@/src/services/promotions';
 
 type StoreTab = 'products' | 'reviews';
 
@@ -81,20 +81,28 @@ function ActionButton({
   );
 }
 
-function StorePromotionCard({ origin }: { origin: BottomNavKey }) {
+function StorePromotionCard({
+  origin,
+  promotion,
+}: {
+  origin: BottomNavKey;
+  promotion: ApiConsumerPromotion;
+}) {
+  const imageUrl = promotion.image_url ?? DEFAULT_STORE_COVER;
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={() =>
-        router.push(`/(consumer)/promotions/${promotionOfTheDay.id}?origin=${origin}` as never)
+        router.push(`/(consumer)/promotions/${promotion.id}?origin=${origin}` as never)
       }
       style={styles.storePromotionCard}
     >
-      <Image source={{ uri: promotionOfTheDay.imageUrl }} style={styles.storePromotionImage} />
+      <Image source={{ uri: imageUrl }} style={styles.storePromotionImage} />
       <View style={styles.storePromotionOverlay}>
-        <Text style={styles.storePromotionEyebrow}>PROMOÇÃO DO DIA</Text>
+        <Text style={styles.storePromotionEyebrow}>PROMOÇÃO ATIVA</Text>
         <Text numberOfLines={2} style={styles.storePromotionTitle}>
-          {promotionOfTheDay.title}
+          {promotion.title}
         </Text>
         <View style={styles.storePromotionLink}>
           <Text style={styles.storePromotionLinkText}>Ver oferta</Text>
@@ -140,6 +148,8 @@ export default function StoreProfileScreen() {
     isLoading: isLoadingProducts,
     isError: isProductsError,
   } = useStoreProducts(storeId);
+  const { data: activePromotions = [] } = useStoreActivePromotions(storeId);
+  const featuredPromotion = activePromotions[0] ?? null;
 
   useFocusEffect(
     useCallback(() => {
@@ -398,7 +408,9 @@ export default function StoreProfileScreen() {
 
           {activeTab === 'products' ? (
             <View style={styles.productsContent}>
-              <StorePromotionCard origin={activeBottomNav} />
+              {featuredPromotion ? (
+                <StorePromotionCard origin={activeBottomNav} promotion={featuredPromotion} />
+              ) : null}
               {isLoadingProducts ? (
                 <ActivityIndicator color={colors.primary} />
               ) : isProductsError ? (

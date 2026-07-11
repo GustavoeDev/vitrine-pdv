@@ -27,12 +27,16 @@ import { mapApiPublicStoreToStore } from '@/src/utils/consumerMappers';
 import { navigateToCategory } from '@/src/utils/navigation';
 import { useAuthStore } from '@/src/stores/authStore';
 
-import { getTopRatedStores, HOME_STORES_PREVIEW_LIMIT } from '@/src/utils/storeFilters';
+import {
+  filterStoresByCategory,
+  HOME_STORES_PREVIEW_LIMIT,
+  sortStoresByRating,
+} from '@/src/utils/storeFilters';
 
 export default function ConsumerHomeScreen() {
   const user = useAuthStore((state) => state.user);
   const { data: categories = [], isLoading } = useCategories();
-  const { data: apiStores = [] } = usePublicStores({ limit: 20 });
+  const { data: apiStores = [], isLoading: isLoadingStores } = usePublicStores({ limit: 20 });
   const { data: featuredPromotion } = useFeaturedPromotion();
   const { data: favoritePromotions = [] } = useFavoritePromotions();
   const { data: unreadNotifications = 0 } = useUnreadNotificationsCount('consumer');
@@ -48,17 +52,9 @@ export default function ConsumerHomeScreen() {
   }, [categoryChips, selectedCategoryId]);
 
   const topRatedStores = useMemo(() => {
-    if (apiStores.length > 0) {
-      const mappedStores = apiStores.map(mapApiPublicStoreToStore);
-      const filtered =
-        selectedCategoryLabel === null
-          ? mappedStores
-          : mappedStores.filter((store) => store.category === selectedCategoryLabel);
-
-      return filtered;
-    }
-
-    return getTopRatedStores(selectedCategoryLabel);
+    const mappedStores = apiStores.map(mapApiPublicStoreToStore);
+    const filtered = filterStoresByCategory(mappedStores, selectedCategoryLabel);
+    return sortStoresByRating(filtered);
   }, [apiStores, selectedCategoryLabel]);
 
   const previewStores = useMemo(
@@ -136,6 +132,7 @@ export default function ConsumerHomeScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{storesSectionTitle}</Text>
+            {isLoadingStores ? <ActivityIndicator color={colors.primary} /> : null}
             {previewStores.length > 0 ? (
               <View style={styles.storeList}>
                 {previewStores.map((store) => (

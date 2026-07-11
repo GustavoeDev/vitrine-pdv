@@ -69,6 +69,13 @@ export interface MerchantUpdatePromotionPayload {
   discount_total?: number;
 }
 
+export async function fetchStoreActivePromotions(
+  storeId: string,
+): Promise<ApiConsumerPromotion[]> {
+  const { data } = await api.get(`/stores/${storeId}/promotions/active/`);
+  return z.array(consumerPromotionSchema).parse(data);
+}
+
 export async function fetchFeaturedPromotion(): Promise<ApiConsumerPromotion | null> {
   const response = await api.get('/promotions/featured/');
 

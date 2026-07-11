@@ -1,9 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import {
-  merchantProfileMock,
-} from '@/src/mocks/merchant';
+import { mapStoreToMerchantProfile, createEmptyMerchantProfile } from '@/src/utils/merchantStoreProfile';
 import {
   createMerchantProduct,
   deleteMerchantProduct,
@@ -39,7 +37,6 @@ import {
   MerchantStatsRange,
 } from '@/src/types/merchant';
 import { resolveMerchantStore, resolveMerchantStoreId } from '@/src/utils/merchantStore';
-import { mapStoreToMerchantProfile } from '@/src/utils/merchantStoreProfile';
 
 export const merchantProductKeys = {
   all: (storeId?: string) => ['merchant', 'products', storeId ?? 'default'] as const,
@@ -98,7 +95,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const activeStore = resolveMerchantStore(userStores, activeStoreId);
   const hasStore = Boolean(activeStoreId);
 
-  const [profile, setProfile] = useState(merchantProfileMock);
+  const [profile, setProfile] = useState(() => createEmptyMerchantProfile(authUser));
   const [statsRange, setStatsRange] = useState<MerchantStatsRange>('30d');
 
   const storeQuery = useQuery({

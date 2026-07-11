@@ -10,6 +10,7 @@ import {
   fetchFavoritePromotions,
   fetchFeaturedPromotion,
   fetchPromotionDetail,
+  fetchStoreActivePromotions,
 } from '@/src/services/promotions';
 import { useAuthStore } from '@/src/stores/authStore';
 
@@ -17,6 +18,7 @@ export const promotionKeys = {
   featured: ['promotions', 'featured'] as const,
   favorites: ['promotions', 'favorites'] as const,
   detail: (id: string) => ['promotions', 'detail', id] as const,
+  storeActive: (storeId: string) => ['promotions', 'store-active', storeId] as const,
 };
 
 export const favoriteKeys = {
@@ -48,6 +50,15 @@ export function usePromotionDetail(promotionId?: string) {
     queryFn: () => fetchPromotionDetail(promotionId!),
     enabled: Boolean(promotionId),
     staleTime: 60_000,
+  });
+}
+
+export function useStoreActivePromotions(storeId?: string) {
+  return useQuery({
+    queryKey: promotionKeys.storeActive(storeId ?? 'unknown'),
+    queryFn: () => fetchStoreActivePromotions(storeId!),
+    enabled: Boolean(storeId),
+    staleTime: 30_000,
   });
 }
 
