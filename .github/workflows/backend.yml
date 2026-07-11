@@ -2,12 +2,12 @@ name: Backend CI/CD
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
     paths:
       - 'backend/**'
       - '.github/workflows/backend.yml'
   pull_request:
-    branches: [master]
+    branches: [develop]
     paths:
       - 'backend/**'
       - '.github/workflows/backend.yml'
@@ -22,6 +22,9 @@ env:
 jobs:
   test:
     name: Test
+    if: |
+      github.ref == 'refs/heads/develop' ||
+      (github.event_name == 'pull_request' && github.base_ref == 'develop')
     runs-on: ubuntu-latest
 
     services:
@@ -68,7 +71,6 @@ jobs:
 
   build-and-push:
     name: Build and push
-    needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
