@@ -25,7 +25,9 @@ RUN groupadd --system app && useradd --system --gid app --create-home app
 
 COPY --from=builder --chown=app:app /app /app
 
-RUN chmod +x /app/scripts/entrypoint.sh
+RUN mkdir -p /app/staticfiles /app/media && \
+    chown -R app:app /app && \
+    chmod +x /app/scripts/entrypoint.sh
 
 USER app
 
