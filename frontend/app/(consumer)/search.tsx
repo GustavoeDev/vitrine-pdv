@@ -17,7 +17,6 @@ import { SearchResultRow } from '@/src/components/features/SearchResultRow';
 import { FeaturedStoreCard } from '@/src/components/features/StoreCards';
 import { BottomNav } from '@/src/components/ui/BottomNav';
 import { colors, radius, spacing } from '@/src/constants/tokens';
-import { featuredStores } from '@/src/mocks/consumer';
 import { useCategories } from '@/src/queries/useCategories';
 import { usePublicStores, useSearch } from '@/src/queries/useDiscovery';
 import type { ApiCategory } from '@/src/types/category';
@@ -85,13 +84,10 @@ export default function ConsumerSearchScreen() {
 
   const isSearchingActive = debouncedQuery.trim().length >= 2;
 
-  const featuredStoreItems = useMemo(() => {
-    if (apiStores.length > 0) {
-      return apiStores.map(mapApiPublicStoreToStore);
-    }
-
-    return featuredStores;
-  }, [apiStores]);
+  const featuredStoreItems = useMemo(
+    () => apiStores.map(mapApiPublicStoreToStore),
+    [apiStores],
+  );
 
   const mappedSearchResults: SearchResult[] = useMemo(
     () =>
@@ -209,6 +205,9 @@ export default function ConsumerSearchScreen() {
               <View style={styles.featuredSection}>
                 <Text style={styles.sectionTitle}>Lojas em destaque</Text>
                 {isLoadingStores ? <ActivityIndicator color={colors.primary} /> : null}
+                {!isLoadingStores && featuredStoreItems.length === 0 ? (
+                  <Text style={styles.emptyText}>Nenhuma loja disponível no momento.</Text>
+                ) : null}
                 <View style={styles.featuredList}>
                   {featuredStoreItems.map((store) => (
                     <FeaturedStoreCard

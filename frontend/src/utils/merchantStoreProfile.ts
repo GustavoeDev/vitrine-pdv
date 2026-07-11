@@ -16,6 +16,55 @@ const API_WEEKDAY_TO_DAY: Record<string, Weekday> = {
   SUNDAY: 'sunday',
 };
 
+const EMPTY_ID = '00000000-0000-0000-0000-000000000000';
+
+export function createEmptyMerchantProfile(user?: ApiUser | null): MerchantProfileData {
+  return {
+    user: {
+      id: user?.id ?? EMPTY_ID,
+      name: user?.name ?? '',
+      email: user?.email ?? '',
+      avatar_url: user?.avatar_url ?? null,
+      notifications_enabled: user?.notifications_enabled ?? true,
+    },
+    store: {
+      id: EMPTY_ID,
+      user_id: user?.id ?? EMPTY_ID,
+      category_id: EMPTY_ID,
+      address_id: EMPTY_ID,
+      name: '',
+      description: '',
+      subcategory: '',
+      phone_number: '',
+      cover_photo_url: null,
+      logo_url: null,
+      status: 'PENDING',
+      reviewed_by: null,
+      reviewed_at: null,
+      rejection_reason: null,
+      created_at: new Date(0).toISOString(),
+    },
+    category: {
+      id: EMPTY_ID,
+      parent_id: null,
+      name: '',
+      photo_url: null,
+    },
+    address: {
+      id: EMPTY_ID,
+      street: '',
+      number: '',
+      complement: null,
+      district: '',
+      city: '',
+      state: '',
+      zipcode: '',
+    },
+    business_hours: [],
+    logo_url: null,
+  };
+}
+
 export function mapStoreToMerchantProfile(
   store: ApiMerchantStore,
   user: ApiUser,

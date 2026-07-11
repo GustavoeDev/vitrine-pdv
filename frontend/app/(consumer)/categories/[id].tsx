@@ -22,7 +22,7 @@ import { findCategoryById, resolveCategoryRoute } from '@/src/services/categorie
 import { Store } from '@/src/types';
 import type { ApiCategory } from '@/src/types/category';
 import { mapApiPublicStoreToStore } from '@/src/utils/consumerMappers';
-import { getTopRatedStores } from '@/src/utils/storeFilters';
+import { sortStoresByRating } from '@/src/utils/storeFilters';
 
 function CategoryStoreRow({ origin, store }: { origin: string; store: Store }) {
   const hasPromotion = false;
@@ -134,25 +134,8 @@ export default function CategoryStoresScreen() {
   const { data: apiStores = [], isLoading: isLoadingStores } = usePublicStores(storeFilters);
 
   const topRatedStores = useMemo(() => {
-    if (apiStores.length > 0) {
-      return apiStores.map(mapApiPublicStoreToStore);
-    }
-
-    if (parentId === 'all') {
-      if (!activeSubcategoryId) {
-        return getTopRatedStores(null);
-      }
-
-      const rootCategory = allCategories.find((category) => category.id === activeSubcategoryId);
-      return getTopRatedStores(rootCategory?.name ?? null);
-    }
-
-    if (!parentCategory) {
-      return [];
-    }
-
-    return getTopRatedStores(parentCategory.name, activeChild?.name ?? null);
-  }, [activeChild?.name, activeSubcategoryId, allCategories, apiStores, parentCategory, parentId]);
+    return sortStoresByRating(apiStores.map(mapApiPublicStoreToStore));
+  }, [apiStores]);
 
   useEffect(() => {
     const paramSubcategoryId = Array.isArray(subcategoryIdParam)
