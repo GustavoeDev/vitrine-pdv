@@ -20,12 +20,19 @@ export async function openWhatsApp(phoneNumber: string, message?: string): Promi
     return false;
   }
 
-  const canOpen = await Linking.canOpenURL(url);
-
-  if (!canOpen) {
-    return false;
+  try {
+    if (await Linking.canOpenURL(url)) {
+      await Linking.openURL(url);
+      return true;
+    }
+  } catch {
+    // canOpenURL returns false/rejects on Android 11+ without manifest queries
   }
 
-  await Linking.openURL(url);
-  return true;
+  try {
+    await Linking.openURL(url);
+    return true;
+  } catch {
+    return false;
+  }
 }

@@ -16,6 +16,13 @@ export default ({ config }: ConfigContext): ExpoConfig =>
     },
     ios: {
       ...config.ios,
+      infoPlist: {
+        ...config.ios?.infoPlist,
+        LSApplicationQueriesSchemes: [
+          ...((config.ios?.infoPlist?.LSApplicationQueriesSchemes as string[] | undefined) ?? []),
+          'whatsapp',
+        ],
+      },
       config: {
         ...config.ios?.config,
         googleMapsApiKey,
