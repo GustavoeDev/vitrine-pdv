@@ -95,6 +95,20 @@ def test_public_store_list_returns_only_active_stores(
 
 
 @pytest.mark.django_db
+def test_public_store_list_hides_inactive_stores(
+    api_client: APIClient,
+    active_store,
+) -> None:
+    active_store.status = StoreStatus.INACTIVE
+    active_store.save(update_fields=["status"])
+
+    response = api_client.get(reverse("public-store-list"))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == []
+
+
+@pytest.mark.django_db
 def test_search_returns_store_and_product_matches(
     api_client: APIClient,
     active_store,

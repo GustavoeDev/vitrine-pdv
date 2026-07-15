@@ -85,7 +85,10 @@ export default function ConsumerSearchScreen() {
   const isSearchingActive = debouncedQuery.trim().length >= 2;
 
   const featuredStoreItems = useMemo(
-    () => apiStores.map(mapApiPublicStoreToStore),
+    () =>
+      apiStores
+        .filter((store) => store.status === 'ACTIVE')
+        .map(mapApiPublicStoreToStore),
     [apiStores],
   );
 

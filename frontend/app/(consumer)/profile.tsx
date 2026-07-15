@@ -89,6 +89,10 @@ function getStoreSubtitle(store: ApiStoreSummary): string {
     return 'Cadastro recusado';
   }
 
+  if (store.status === 'INACTIVE') {
+    return 'Loja desativada';
+  }
+
   return store.subcategory?.trim() || store.category_name;
 }
 
@@ -112,9 +116,34 @@ export default function ConsumerProfileScreen() {
   const stores = user?.stores ?? [];
   const userInitial = user ? getEstablishmentInitial(user.name) : 'U';
 
-  const handleStorePress = (store: ApiStoreSummary) => {
+  const handleStorePress = async (store: ApiStoreSummary) => {
     if (store.status === 'ACTIVE') {
       router.push('/(merchant)' as never);
+      return;
+    }
+
+    if (store.status === 'INACTIVE') {
+      await showAlert({
+        title: 'Loja desativada',
+        subtitle:
+          'Este estabelecimento está desativado e não aparece na vitrine para consumidores.',
+      });
+      return;
+    }
+
+    if (store.status === 'PENDING') {
+      await showAlert({
+        title: 'Cadastro em análise',
+        subtitle: 'Aguarde a aprovação para acessar o painel da loja.',
+      });
+      return;
+    }
+
+    if (store.status === 'REJECTED') {
+      await showAlert({
+        title: 'Cadastro recusado',
+        subtitle: 'Este estabelecimento não foi aprovado. Você pode cadastrar outro.',
+      });
     }
   };
 
@@ -189,7 +218,8 @@ export default function ConsumerProfileScreen() {
                   <ProfileRow
                     icon="storefront-outline"
                     label={store.name}
-                    onPress={() => handleStorePress(store)}
+                    mutedIcon={store.status !== 'ACTIVE'}
+                    onPress={() => void handleStorePress(store)}
                     showChevron={store.status === 'ACTIVE'}
                     subtitle={getStoreSubtitle(store)}
                   />

@@ -52,7 +52,9 @@ export default function ConsumerHomeScreen() {
   }, [categoryChips, selectedCategoryId]);
 
   const topRatedStores = useMemo(() => {
-    const mappedStores = apiStores.map(mapApiPublicStoreToStore);
+    const mappedStores = apiStores
+      .filter((store) => store.status === 'ACTIVE')
+      .map(mapApiPublicStoreToStore);
     const filtered = filterStoresByCategory(mappedStores, selectedCategoryLabel);
     return sortStoresByRating(filtered);
   }, [apiStores, selectedCategoryLabel]);
