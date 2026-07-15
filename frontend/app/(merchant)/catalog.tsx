@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
+import { MerchantProductPrice } from '@/src/components/merchant/MerchantProductPrice';
 import { CategoryChip } from '@/src/components/features/CategoryChip';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
@@ -126,9 +127,7 @@ export default function MerchantCatalogScreen() {
                   <Image source={{ uri: product.photo_url ?? '' }} style={styles.productImage} />
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productPrice}>
-                      {product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </Text>
+                    <MerchantProductPrice product={product} />
                   </View>
                   <Switch
                     disabled={isSavingProduct}
@@ -192,7 +191,6 @@ const styles = StyleSheet.create({
   productImage: { width: 60, height: 60, borderRadius: 16, backgroundColor: colors.neutralSoft },
   productInfo: { flex: 1, gap: 2 },
   productName: { color: colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '700' },
-  productPrice: { color: colors.primary, fontSize: 15, lineHeight: 20, fontWeight: '700' },
   deleteButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: '#FEE2E2' },
   deleteText: { color: '#DC2626', fontSize: 12, lineHeight: 16, fontWeight: '700' },
   fab: {

@@ -13,6 +13,8 @@ interface AdminStoreCardProps {
   store: AdminStoreListItem;
   onApprove?: () => void;
   onReject?: () => void;
+  onDeactivate?: () => void;
+  onActivate?: () => void;
   onDetails: () => void;
   isProcessing?: boolean;
 }
@@ -21,11 +23,15 @@ export function AdminStoreCard({
   store,
   onApprove,
   onReject,
+  onDeactivate,
+  onActivate,
   onDetails,
   isProcessing = false,
 }: AdminStoreCardProps) {
   const logoUri = store.logo_url ?? DEFAULT_LOGO_IMAGE;
   const showReviewActions = store.status === 'PENDING' && onApprove && onReject;
+  const showDeactivate = store.status === 'ACTIVE' && onDeactivate;
+  const showActivate = store.status === 'INACTIVE' && onActivate;
 
   return (
     <View style={styles.card}>
@@ -79,6 +85,28 @@ export function AdminStoreCard({
                 <Text style={styles.rejectText}>Recusar</Text>
               </Pressable>
             </>
+          ) : null}
+
+          {showDeactivate ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={isProcessing}
+              onPress={onDeactivate}
+              style={styles.deactivateButton}
+            >
+              <Text style={styles.deactivateText}>Desativar</Text>
+            </Pressable>
+          ) : null}
+
+          {showActivate ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={isProcessing}
+              onPress={onActivate}
+              style={styles.approveButton}
+            >
+              <Text style={styles.approveText}>Ativar</Text>
+            </Pressable>
           ) : null}
         </View>
       </View>
@@ -155,8 +183,10 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   detailsButton: {
     height: 32,
@@ -200,6 +230,22 @@ const styles = StyleSheet.create({
   },
   rejectText: {
     color: colors.danger,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  deactivateButton: {
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#D97706',
+    backgroundColor: colors.background,
+  },
+  deactivateText: {
+    color: '#D97706',
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '600',

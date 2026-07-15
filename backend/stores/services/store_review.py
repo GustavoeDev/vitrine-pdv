@@ -54,3 +54,38 @@ def reject_store(*, store: Store, reviewer: User, rejection_reason: str) -> Stor
         ]
     )
     return store
+
+
+def deactivate_store(*, store: Store, reviewer: User) -> Store:
+    if store.status != StoreStatus.ACTIVE:
+        raise ValidationError(
+            {"status": "Somente estabelecimentos ativos podem ser desativados."}
+        )
+
+    store.status = StoreStatus.INACTIVE
+    store.reviewed_by = reviewer
+    store.reviewed_at = timezone.now()
+    store.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+    return store
+
+
+def activate_store(*, store: Store, reviewer: User) -> Store:
+    if store.status != StoreStatus.INACTIVE:
+        raise ValidationError(
+            {"status": "Somente estabelecimentos inativos podem ser reativados."}
+        )
+
+    ensure_address_coordinates(store.address)
+    store.status = StoreStatus.ACTIVE
+    store.reviewed_by = reviewer
+    store.reviewed_at = timezone.now()
+    store.rejection_reason = ""
+    store.save(
+        update_fields=[
+            "status",
+            "reviewed_by",
+            "reviewed_at",
+            "rejection_reason",
+        ]
+    )
+    return store

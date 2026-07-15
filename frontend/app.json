@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.vitrinepdv.app",
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

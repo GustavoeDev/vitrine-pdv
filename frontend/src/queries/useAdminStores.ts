@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  activateAdminStore,
   approveAdminStore,
+  deactivateAdminStore,
   fetchAdminStore,
   fetchAdminStores,
   fetchAdminStoreSummary,
@@ -27,6 +29,7 @@ export function useAdminStores(status: AdminStoreFilter) {
   return useQuery({
     queryKey: adminStoreKeys.list(status),
     queryFn: () => fetchAdminStores(status),
+    staleTime: 0,
   });
 }
 
@@ -55,6 +58,28 @@ export function useRejectAdminStore() {
   return useMutation({
     mutationFn: ({ storeId, rejectionReason }: { storeId: string; rejectionReason: string }) =>
       rejectAdminStore(storeId, rejectionReason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminStoreKeys.all });
+    },
+  });
+}
+
+export function useDeactivateAdminStore() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deactivateAdminStore,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminStoreKeys.all });
+    },
+  });
+}
+
+export function useActivateAdminStore() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: activateAdminStore,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminStoreKeys.all });
     },
