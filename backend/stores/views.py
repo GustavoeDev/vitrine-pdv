@@ -28,7 +28,12 @@ from stores.services.merchant_stats import RANGE_DAYS, get_merchant_stats
 from stores.services.merchant_store import update_merchant_store
 from stores.services.store_access import get_user_store
 from stores.services.store_registration import register_store
-from stores.services.store_review import approve_store, reject_store
+from stores.services.store_review import (
+    activate_store,
+    approve_store,
+    deactivate_store,
+    reject_store,
+)
 from stores.serializers_merchant_stats import MerchantStatsSerializer
 
 
@@ -190,6 +195,26 @@ class AdminStoreApproveView(APIView):
     def post(self, request: Request, pk) -> Response:
         store = get_object_or_404(_admin_store_queryset(), pk=pk)
         store = approve_store(store=store, reviewer=request.user)
+        return Response(AdminStoreDetailSerializer(store).data)
+
+
+@extend_schema(responses=AdminStoreDetailSerializer, tags=['Administração'])
+class AdminStoreDeactivateView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request: Request, pk) -> Response:
+        store = get_object_or_404(_admin_store_queryset(), pk=pk)
+        store = deactivate_store(store=store, reviewer=request.user)
+        return Response(AdminStoreDetailSerializer(store).data)
+
+
+@extend_schema(responses=AdminStoreDetailSerializer, tags=['Administração'])
+class AdminStoreActivateView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request: Request, pk) -> Response:
+        store = get_object_or_404(_admin_store_queryset(), pk=pk)
+        store = activate_store(store=store, reviewer=request.user)
         return Response(AdminStoreDetailSerializer(store).data)
 
 

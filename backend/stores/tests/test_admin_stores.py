@@ -177,3 +177,48 @@ def test_admin_reject_store_requires_reason(
     pending_store.refresh_from_db()
     assert pending_store.status == StoreStatus.REJECTED
     assert pending_store.rejection_reason == "Documentação incompleta"
+
+
+@pytest.mark.django_db
+def test_admin_deactivate_active_store(
+    api_client: APIClient,
+    staff_user,
+    pending_store,
+) -> None:
+    from stores.services.store_review import approve_store
+
+    approve_store(store=pending_store, reviewer=staff_user)
+    api_client.force_authenticate(user=staff_user)
+
+    response = api_client.post(
+        reverse("admin-store-deactivate", kwargs={"pk": pending_store.id})
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["status"] == "INACTIVE"
+
+    pending_store.refresh_from_db()
+    assert pending_store.status == StoreStatus.INACTIVE
+
+
+@pytest.mark.django_db
+def test_admin_activate_inactive_store(
+    api_client: APIClient,
+    staff_user,
+    pending_store,
+) -> None:
+    from stores.services.store_review import approve_store, deactivate_store
+
+    approve_store(store=pending_store, reviewer=staff_user)
+    deactivate_store(store=pending_store, reviewer=staff_user)
+    api_client.force_authenticate(user=staff_user)
+
+    response = api_client.post(
+        reverse("admin-store-activate", kwargs={"pk": pending_store.id})
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["status"] == "ACTIVE"
+
+    pending_store.refresh_from_db()
+    assert pending_store.status == StoreStatus.ACTIVE

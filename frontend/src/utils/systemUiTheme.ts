@@ -4,17 +4,28 @@ import { AppState, Platform, StatusBar as RNStatusBar } from 'react-native';
 
 import { colors } from '@/src/constants/tokens';
 
+/**
+ * Aplica cores da status bar / navigation bar no Android.
+ * Só funciona de forma confiável com `android.edgeToEdgeEnabled: false`
+ * (APIs de cor de fundo foram deprecadas no edge-to-edge / Android 15+).
+ */
 export async function applyAndroidSystemUiTheme(): Promise<void> {
   if (Platform.OS !== 'android') {
     return;
   }
 
-  RNStatusBar.setBackgroundColor(colors.primary);
+  RNStatusBar.setBackgroundColor(colors.primary, false);
   RNStatusBar.setBarStyle('light-content');
+  RNStatusBar.setTranslucent(false);
 
   await SystemUI.setBackgroundColorAsync(colors.black);
-  await NavigationBar.setStyle('dark');
-  await NavigationBar.setButtonStyleAsync('light');
+
+  try {
+    await NavigationBar.setBackgroundColorAsync(colors.black);
+    await NavigationBar.setButtonStyleAsync('light');
+  } catch {
+    // Sem efeito se edge-to-edge estiver ligado no device.
+  }
 }
 
 export function subscribeAndroidSystemUiTheme(): () => void {

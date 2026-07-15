@@ -4,6 +4,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MerchantBottomNav } from '@/src/components/merchant/MerchantBottomNav';
+import { MerchantProductPrice } from '@/src/components/merchant/MerchantProductPrice';
 import { colors, radius, spacing } from '@/src/constants/tokens';
 import { useMerchant, useMerchantStats } from '@/src/contexts/MerchantContext';
 import { useUnreadNotificationsCount } from '@/src/queries/useNotifications';
@@ -136,9 +137,7 @@ export default function MerchantDashboardScreen() {
                   <Image source={{ uri: product.photo_url ?? '' }} style={styles.productImage} />
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productPrice}>
-                      {product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </Text>
+                    <MerchantProductPrice compact product={product} />
                   </View>
                   <View
                     style={[
@@ -232,7 +231,6 @@ const styles = StyleSheet.create({
   productImage: { width: 48, height: 48, borderRadius: 12, backgroundColor: colors.neutralSoft },
   productInfo: { flex: 1, gap: 2 },
   productName: { color: colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '700' },
-  productPrice: { color: colors.textSecondary, fontSize: 15, lineHeight: 20, fontWeight: '400' },
   statusPill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.full },
   activePill: { backgroundColor: '#DCFCE7' },
   inactivePill: { backgroundColor: colors.neutralSoft },

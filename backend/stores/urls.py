@@ -1,7 +1,9 @@
 from django.urls import path
 
 from stores.views import (
+    AdminStoreActivateView,
     AdminStoreApproveView,
+    AdminStoreDeactivateView,
     AdminStoreDetailView,
     AdminStoreListView,
     AdminStoreRejectView,
@@ -47,5 +49,15 @@ urlpatterns = [
         "admin/stores/<uuid:pk>/reject/",
         AdminStoreRejectView.as_view(),
         name="admin-store-reject",
+    ),
+    path(
+        "admin/stores/<uuid:pk>/deactivate/",
+        AdminStoreDeactivateView.as_view(),
+        name="admin-store-deactivate",
+    ),
+    path(
+        "admin/stores/<uuid:pk>/activate/",
+        AdminStoreActivateView.as_view(),
+        name="admin-store-activate",
     ),
 ]

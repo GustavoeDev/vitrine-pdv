@@ -95,3 +95,13 @@ export async function rejectAdminStore(
   });
   return adminStoreDetailSchema.parse(data);
 }
+
+export async function deactivateAdminStore(storeId: string): Promise<AdminStoreDetail> {
+  const { data } = await api.post(`/admin/stores/${storeId}/deactivate/`);
+  return adminStoreDetailSchema.parse(data);
+}
+
+export async function activateAdminStore(storeId: string): Promise<AdminStoreDetail> {
+  const { data } = await api.post(`/admin/stores/${storeId}/activate/`);
+  return adminStoreDetailSchema.parse(data);
+}

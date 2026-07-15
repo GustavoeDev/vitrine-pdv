@@ -19,9 +19,11 @@ import { BottomSheetOption } from '@/src/components/ui/BottomSheetOption';
 import { colors, spacing } from '@/src/constants/tokens';
 import { useAppModal } from '@/src/contexts/AppModalContext';
 import {
+  useActivateAdminStore,
   useAdminStoreSummary,
   useAdminStores,
   useApproveAdminStore,
+  useDeactivateAdminStore,
   useRejectAdminStore,
 } from '@/src/queries/useAdminStores';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -40,6 +42,8 @@ export default function AdminPanelScreen() {
   const { data: stores = [], isLoading: isListLoading, refetch } = useAdminStores(filter);
   const approveMutation = useApproveAdminStore();
   const rejectMutation = useRejectAdminStore();
+  const deactivateMutation = useDeactivateAdminStore();
+  const activateMutation = useActivateAdminStore();
 
   useEffect(() => {
     if (user && !user.is_staff) {
@@ -116,6 +120,57 @@ export default function AdminPanelScreen() {
     }
   };
 
+  const handleDeactivate = async (storeId: string, storeName: string) => {
+    const confirmed = await showConfirm({
+      title: 'Desativar estabelecimento',
+      subtitle: `Deseja desativar "${storeName}"? A loja deixará de aparecer para consumidores.`,
+      confirmLabel: 'Desativar',
+      destructive: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingStoreId(storeId);
+      await deactivateMutation.mutateAsync(storeId);
+      await refetch();
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível desativar o estabelecimento.',
+      });
+    } finally {
+      setProcessingStoreId(null);
+    }
+  };
+
+  const handleActivate = async (storeId: string, storeName: string) => {
+    const confirmed = await showConfirm({
+      title: 'Ativar estabelecimento',
+      subtitle: `Deseja reativar "${storeName}"?`,
+      confirmLabel: 'Ativar',
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingStoreId(storeId);
+      await activateMutation.mutateAsync(storeId);
+      await refetch();
+    } catch {
+      await showAlert({
+        title: 'Erro',
+        subtitle: 'Não foi possível ativar o estabelecimento.',
+      });
+    } finally {
+      setProcessingStoreId(null);
+    }
+  };
+
   const isLoading = isSummaryLoading || isListLoading;
 
   return (
@@ -150,9 +205,19 @@ export default function AdminPanelScreen() {
                 <AdminStoreCard
                   key={store.id}
                   isProcessing={processingStoreId === store.id}
+                  onActivate={
+                    store.status === 'INACTIVE'
+                      ? () => void handleActivate(store.id, store.name)
+                      : undefined
+                  }
                   onApprove={
                     store.status === 'PENDING'
                       ? () => void handleApprove(store.id, store.name)
+                      : undefined
+                  }
+                  onDeactivate={
+                    store.status === 'ACTIVE'
+                      ? () => void handleDeactivate(store.id, store.name)
                       : undefined
                   }
                   onDetails={() =>
