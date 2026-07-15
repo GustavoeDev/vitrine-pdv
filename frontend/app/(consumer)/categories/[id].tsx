@@ -134,7 +134,11 @@ export default function CategoryStoresScreen() {
   const { data: apiStores = [], isLoading: isLoadingStores } = usePublicStores(storeFilters);
 
   const topRatedStores = useMemo(() => {
-    return sortStoresByRating(apiStores.map(mapApiPublicStoreToStore));
+    return sortStoresByRating(
+      apiStores
+        .filter((store) => store.status === 'ACTIVE')
+        .map(mapApiPublicStoreToStore),
+    );
   }, [apiStores]);
 
   useEffect(() => {
